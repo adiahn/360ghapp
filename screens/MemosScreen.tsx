@@ -200,7 +200,12 @@ const MemosScreen = ({ navigation }: any) => {
         <Text style={styles.headerTitle}>
           {activeTab === 'home' ? 'Home' : 'MDA\'s'}
         </Text>
-        <View style={styles.headerRight} />
+        <TouchableOpacity style={styles.notificationButton} onPress={() => {}}>
+          <Ionicons name="notifications-outline" size={24} color={colors.text.primary} />
+          <View style={styles.notificationBadge}>
+            <Text style={styles.notificationCount}>3</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Animated Sidebar Menu */}
@@ -362,8 +367,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text.primary,
   },
-  headerRight: {
-    width: 40,
+  notificationButton: {
+    position: 'relative',
+    padding: 8,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: colors.error,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.surface,
+  },
+  notificationCount: {
+    color: colors.text.inverse,
+    fontSize: 12,
+    fontWeight: '600',
   },
   sidebar: {
     position: 'absolute',

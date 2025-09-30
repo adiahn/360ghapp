@@ -39,6 +39,7 @@ export interface User {
 }
 
 export interface MemoAction {
+  id: string;
   memoId: string;
   action: MemoStatus;
   comment?: string;

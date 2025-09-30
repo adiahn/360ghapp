@@ -8,6 +8,7 @@ import {
   Alert,
   StyleSheet,
   TextInput,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -24,13 +25,18 @@ const MemoViewScreen = () => {
   
   const [memo, setMemo] = useState<Memo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'details' | 'workflow' | 'comments'>('details');
   const [showActionModal, setShowActionModal] = useState(false);
   const [showBiometricModal, setShowBiometricModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [actionComment, setActionComment] = useState('');
+  const [comments, setComments] = useState<MemoAction[]>([]);
+  const [workflowHistory, setWorkflowHistory] = useState<any[]>([]);
 
   useEffect(() => {
     loadMemo();
+    loadComments();
+    loadWorkflowHistory();
   }, [memoId]);
 
   const loadMemo = async () => {
@@ -47,18 +53,51 @@ const MemoViewScreen = () => {
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent':
-        return colors.error;
-      case 'high':
-        return colors.warning;
-      case 'medium':
-        return colors.primary;
-      case 'low':
-        return colors.gray[500];
-      default:
-        return colors.gray[500];
+  const loadComments = async () => {
+    try {
+      const actions = await DataService.getActions();
+      const memoComments = actions.filter(action => action.memoId === memoId);
+      setComments(memoComments);
+    } catch (error) {
+      console.error('Error loading comments:', error);
+    }
+  };
+
+  const loadWorkflowHistory = async () => {
+    try {
+      // Simulate workflow history - in a real app, this would come from the backend
+      const history = [
+        {
+          id: '1',
+          office: 'Principal Private Secretary',
+          status: 'created',
+          startDate: memo?.date || new Date(),
+          endDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+          duration: '2 days',
+          completed: true,
+        },
+        {
+          id: '2',
+          office: 'Chief of Staff',
+          status: 'under_review',
+          startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+          endDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+          duration: '1 day',
+          completed: true,
+        },
+        {
+          id: '3',
+          office: 'Cabinet Secretary',
+          status: 'pending',
+          startDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+          endDate: null,
+          duration: '1 day (ongoing)',
+          completed: false,
+        },
+      ];
+      setWorkflowHistory(history);
+    } catch (error) {
+      console.error('Error loading workflow history:', error);
     }
   };
 
@@ -72,27 +111,23 @@ const MemoViewScreen = () => {
         return colors.warning;
       case 'pending':
         return colors.gray[500];
-      case 'archived':
-        return colors.gray[400];
       default:
         return colors.gray[500];
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusText = (status: string) => {
     switch (status) {
       case 'approved':
-        return 'checkmark-circle';
+        return 'Approved';
       case 'rejected':
-        return 'close-circle';
+        return 'Rejected';
       case 'request_details':
-        return 'help-circle';
+        return 'Request Details';
       case 'pending':
-        return 'time';
-      case 'archived':
-        return 'archive';
+        return 'Pending';
       default:
-        return 'help-circle';
+        return status;
     }
   };
 
@@ -122,7 +157,6 @@ const MemoViewScreen = () => {
   const handleAction = async (action: string) => {
     if (!memo) return;
 
-    // Set the pending action and show biometric modal
     setPendingAction(action);
     setShowActionModal(false);
     setShowBiometricModal(true);
@@ -142,7 +176,6 @@ const MemoViewScreen = () => {
 
       await DataService.saveAction(memoAction);
       
-      // Update memo status
       const updatedMemo = { ...memo, status: pendingAction as any };
       await DataService.saveMemo(updatedMemo);
       
@@ -150,6 +183,9 @@ const MemoViewScreen = () => {
       setShowBiometricModal(false);
       setActionComment('');
       setPendingAction(null);
+      
+      // Reload comments
+      await loadComments();
       
       Alert.alert('Success', `Memo ${pendingAction.replace('_', ' ')} successfully`);
     } catch (error) {
@@ -161,8 +197,150 @@ const MemoViewScreen = () => {
   const handleBiometricCancel = () => {
     setShowBiometricModal(false);
     setPendingAction(null);
-    setShowActionModal(true); // Return to action modal
+    setShowActionModal(true);
   };
+
+  const renderTabButton = (tab: 'details' | 'workflow' | 'comments', icon: string, label: string) => (
+    <TouchableOpacity
+      style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
+      onPress={() => setActiveTab(tab)}
+    >
+      <Ionicons 
+        name={icon as any} 
+        size={20} 
+        color={activeTab === tab ? colors.text.inverse : colors.text.secondary} 
+      />
+      <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const renderMemoDetails = () => {
+    if (!memo) return null;
+
+    return (
+      <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.memoContainer}>
+          {/* Header */}
+          <View style={styles.memoHeader}>
+            <View style={styles.refContainer}>
+              <Text style={styles.refLabel}>Ref No:</Text>
+              <Text style={styles.refNumber}>{generateRefNumber(memo)}</Text>
+            </View>
+            <View style={styles.dateContainer}>
+              <Text style={styles.dateLabel}>Date:</Text>
+              <Text style={styles.dateText}>{formatDate(memo.date)}</Text>
+            </View>
+          </View>
+
+          {/* Status Badge */}
+          <View style={styles.statusContainer}>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(memo.status) }]}>
+              <Ionicons name="checkmark-circle" size={16} color={colors.text.inverse} />
+              <Text style={styles.statusText}>{getStatusText(memo.status)}</Text>
+            </View>
+          </View>
+
+          {/* Sender Info */}
+          <View style={styles.senderContainer}>
+            <Text style={styles.senderLabel}>From:</Text>
+            <Text style={styles.senderName}>Principal Private Secretary</Text>
+            <Text style={styles.senderDept}>Katsina State Government</Text>
+          </View>
+
+          {/* Salutation */}
+          <Text style={styles.salutation}>Dear Sir/Madam,</Text>
+
+          {/* Subject */}
+          <View style={styles.subjectContainer}>
+            <Text style={styles.subjectText}>{memo.title.toUpperCase()}</Text>
+          </View>
+
+          {/* Content */}
+          <View style={styles.contentContainer}>
+            <Text style={styles.contentText}>{memo.content}</Text>
+          </View>
+
+          {/* Closing */}
+          <View style={styles.closingContainer}>
+            <Text style={styles.closingText}>Yours faithfully,</Text>
+            <Text style={styles.signatureName}>Principal Private Secretary</Text>
+            <Text style={styles.signatureDept}>Katsina State Government</Text>
+          </View>
+        </View>
+      </ScrollView>
+    );
+  };
+
+  const renderWorkflow = () => (
+    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+      <View style={styles.workflowContainer}>
+        <Text style={styles.sectionTitle}>Workflow History</Text>
+        <Text style={styles.sectionSubtitle}>Track the memo's journey through different offices</Text>
+        
+        <View style={styles.workflowSteps}>
+          {workflowHistory.map((step, index) => (
+            <View key={step.id} style={styles.workflowItem}>
+              <View style={styles.workflowStep}>
+                <View style={[styles.stepIcon, step.completed ? styles.completedIcon : styles.pendingIcon]}>
+                  <Ionicons 
+                    name={step.completed ? "checkmark" : "time"} 
+                    size={16} 
+                    color={step.completed ? colors.text.inverse : colors.text.secondary} 
+                  />
+                </View>
+                <View style={styles.stepContent}>
+                  <Text style={styles.stepTitle}>{step.office}</Text>
+                  <Text style={styles.stepStatus}>
+                    {step.status.replace('_', ' ').toUpperCase()}
+                  </Text>
+                  <Text style={styles.stepDuration}>
+                    Duration: {step.duration}
+                  </Text>
+                  <Text style={styles.stepDate}>
+                    {formatDate(step.startDate)} - {step.endDate ? formatDate(step.endDate) : 'Ongoing'}
+                  </Text>
+                </View>
+              </View>
+              {index < workflowHistory.length - 1 && (
+                <View style={styles.workflowConnector} />
+              )}
+            </View>
+          ))}
+        </View>
+      </View>
+    </ScrollView>
+  );
+
+  const renderComments = () => (
+    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+      <View style={styles.commentsContainer}>
+        <Text style={styles.sectionTitle}>Comments & Actions</Text>
+        
+        {comments.length === 0 ? (
+          <View style={styles.emptyComments}>
+            <Ionicons name="chatbubble-outline" size={48} color={colors.gray[300]} />
+            <Text style={styles.emptyCommentsText}>No comments yet</Text>
+          </View>
+        ) : (
+          comments.map((comment, index) => (
+            <View key={index} style={styles.commentItem}>
+              <View style={styles.commentHeader}>
+                <Text style={styles.commentAction}>{comment.action.replace('_', ' ')}</Text>
+                <Text style={styles.commentDate}>
+                  {formatDate(comment.timestamp)} at {formatTime(comment.timestamp)}
+                </Text>
+              </View>
+              {comment.comment && (
+                <Text style={styles.commentText}>{comment.comment}</Text>
+              )}
+            </View>
+          ))
+        )}
+      </View>
+    </ScrollView>
+  );
 
   const renderActionModal = () => (
     <Modal
@@ -198,31 +376,27 @@ const MemoViewScreen = () => {
           
           <View style={styles.actionButtons}>
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.actionButton, styles.approveButton]}
               onPress={() => handleAction('approved')}
             >
+              <Ionicons name="checkmark" size={20} color={colors.text.inverse} />
               <Text style={styles.actionButtonText}>Approve</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.actionButton, styles.rejectButton]}
               onPress={() => handleAction('rejected')}
             >
+              <Ionicons name="close" size={20} color={colors.text.inverse} />
               <Text style={styles.actionButtonText}>Reject</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.actionButton, styles.requestButton]}
               onPress={() => handleAction('request_details')}
             >
+              <Ionicons name="help-circle" size={20} color={colors.text.inverse} />
               <Text style={styles.actionButtonText}>Request Details</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleAction('pending')}
-            >
-              <Text style={styles.actionButtonText}>Leave Pending</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -232,76 +406,60 @@ const MemoViewScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading memo...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="refresh" size={24} color={colors.gray[400]} />
+          <Text style={styles.loadingText}>Loading memo...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!memo) {
     return (
-      <View style={styles.errorContainer}>
-        <Ionicons name="document-outline" size={64} color={colors.gray[300]} />
-        <Text style={styles.errorTitle}>Memo Not Found</Text>
-        <Text style={styles.errorText}>The requested memo could not be found.</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={48} color={colors.error} />
+          <Text style={styles.errorTitle}>Memo Not Found</Text>
+          <Text style={styles.errorSubtitle}>The requested memo could not be found.</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Reference and Date */}
-        <View style={styles.referenceSection}>
-          <Text style={styles.refNumber}>Ref No: {generateRefNumber(memo)}</Text>
-          <Text style={styles.dateText}>Date: {formatDate(memo.date)}</Text>
-        </View>
+    <SafeAreaView style={styles.container}>
+      {/* Tab Navigation */}
+      <View style={styles.tabNavigation}>
+        {renderTabButton('details', 'document-text', 'Details')}
+        {renderTabButton('workflow', 'git-branch', 'Workflow')}
+        {renderTabButton('comments', 'chatbubble', 'Comments')}
+      </View>
 
-        {/* From */}
-        <View style={styles.fromSection}>
-          <Text style={styles.fromText}>From: Commissioner of Finance</Text>
-          <Text style={styles.ministryText}>Ministry of Budget and Planning</Text>
-        </View>
+      {/* Tab Content */}
+      {activeTab === 'details' && renderMemoDetails()}
+      {activeTab === 'workflow' && renderWorkflow()}
+      {activeTab === 'comments' && renderComments()}
 
-        {/* Greeting */}
-        <Text style={styles.greeting}>Dear Sir/Madam,</Text>
-
-        {/* Subject */}
-        <View style={styles.subjectSection}>
-          <Text style={styles.subjectText}>{memo.title.toUpperCase()}</Text>
-        </View>
-
-        {/* Content */}
-        <View style={styles.contentSection}>
-          <Text style={styles.memoContent}>{memo.content}</Text>
-        </View>
-
-        {/* Closing */}
-        <View style={styles.closingSection}>
-          <Text style={styles.closingText}>Yours faithfully,</Text>
-          <Text style={styles.authorName}>Principal Private Secretary</Text>
-          <Text style={styles.authorTitle}>Katsina State Government</Text>
-        </View>
-      </ScrollView>
-
-      {/* Three Dot Menu */}
+      {/* Main Action Button */}
       <TouchableOpacity
-        style={styles.menuButton}
+        style={styles.fab}
         onPress={() => setShowActionModal(true)}
       >
-        <Ionicons name="ellipsis-vertical" size={20} color={colors.primary} />
+        <Ionicons name="ellipsis-vertical" size={24} color={colors.text.inverse} />
       </TouchableOpacity>
 
+      {/* Modals */}
       {renderActionModal()}
       
       <BiometricAuthModal
         visible={showBiometricModal}
-        onClose={handleBiometricCancel}
         onSuccess={handleBiometricSuccess}
-        action={pendingAction ? pendingAction.replace('_', ' ') : ''}
+        onClose={handleBiometricCancel}
+        action={pendingAction || 'perform action'}
         memoTitle={memo?.title}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -310,146 +468,332 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollView: {
-    flex: 1,
-    padding: 20,
-  },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    justifyContent: 'center',
+    paddingVertical: 80,
   },
   loadingText: {
     fontSize: 16,
     color: colors.text.secondary,
+    marginTop: 16,
   },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
-    padding: 40,
+    justifyContent: 'center',
+    paddingVertical: 80,
+    paddingHorizontal: 40,
   },
   errorTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '600',
     color: colors.text.primary,
-    marginTop: 20,
-    marginBottom: 12,
+    marginTop: 16,
+    marginBottom: 8,
   },
-  errorText: {
+  errorSubtitle: {
     fontSize: 16,
     color: colors.text.secondary,
     textAlign: 'center',
+    lineHeight: 22,
   },
-  // Reference and Date
-  referenceSection: {
+  tabNavigation: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  activeTabButton: {
+    backgroundColor: colors.primary,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text.secondary,
+  },
+  activeTabText: {
+    color: colors.text.inverse,
+    fontWeight: '600',
+  },
+  tabContent: {
+    flex: 1,
+    backgroundColor: colors.surface,
+  },
+  memoContainer: {
+    padding: 20,
+  },
+  memoHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 16,
-    paddingHorizontal: 8,
   },
-  refNumber: {
-    fontSize: 13,
-    color: colors.text.secondary,
-    fontWeight: '500',
+  refContainer: {
+    flex: 1,
   },
-  dateText: {
-    fontSize: 13,
-    color: colors.text.secondary,
-    fontWeight: '500',
-  },
-  // From
-  fromSection: {
-    marginBottom: 16,
-    paddingHorizontal: 8,
-  },
-  fromText: {
-    fontSize: 15,
-    color: colors.text.primary,
-    fontWeight: '500',
+  refLabel: {
+    fontSize: 12,
+    color: colors.text.tertiary,
     marginBottom: 4,
   },
-  ministryText: {
-    fontSize: 13,
-    color: colors.text.secondary,
-    fontStyle: 'italic',
-  },
-  // Greeting
-  greeting: {
-    fontSize: 15,
+  refNumber: {
+    fontSize: 14,
+    fontWeight: '600',
     color: colors.text.primary,
-    marginBottom: 16,
-    paddingHorizontal: 8,
   },
-  // Subject
-  subjectSection: {
-    marginBottom: 16,
-    paddingHorizontal: 8,
+  dateContainer: {
+    alignItems: 'flex-end',
   },
-  subjectText: {
+  dateLabel: {
+    fontSize: 12,
+    color: colors.text.tertiary,
+    marginBottom: 4,
+  },
+  dateText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  statusContainer: {
+    alignItems: 'flex-start',
+    marginBottom: 24,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text.inverse,
+    textTransform: 'capitalize',
+  },
+  senderContainer: {
+    marginBottom: 20,
+  },
+  senderLabel: {
+    fontSize: 12,
+    color: colors.text.tertiary,
+    marginBottom: 4,
+  },
+  senderName: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text.primary,
-    textAlign: 'center',
-    letterSpacing: 0.3,
+    marginBottom: 2,
   },
-  // Content
-  contentSection: {
-    marginBottom: 24,
-    paddingHorizontal: 8,
+  senderDept: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    fontStyle: 'italic',
   },
-  memoContent: {
-    fontSize: 15,
+  salutation: {
+    fontSize: 16,
     color: colors.text.primary,
-    lineHeight: 22,
-    textAlign: 'justify',
+    marginBottom: 20,
   },
-  // Closing
-  closingSection: {
+  subjectContainer: {
+    backgroundColor: colors.gray[50],
+    padding: 16,
+    borderRadius: 8,
     marginBottom: 24,
-    paddingHorizontal: 8,
+  },
+  subjectText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text.primary,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  contentContainer: {
+    marginBottom: 24,
+  },
+  contentText: {
+    fontSize: 16,
+    color: colors.text.primary,
+    lineHeight: 24,
+  },
+  closingContainer: {
+    marginTop: 20,
   },
   closingText: {
-    fontSize: 15,
+    fontSize: 16,
     color: colors.text.primary,
     marginBottom: 16,
   },
-  authorName: {
-    fontSize: 15,
-    fontWeight: '500',
+  signatureName: {
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.text.primary,
     marginBottom: 4,
   },
-  authorTitle: {
-    fontSize: 13,
+  signatureDept: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    fontStyle: 'italic',
+  },
+  workflowContainer: {
+    padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 20,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    marginTop: -16,
+    marginBottom: 20,
+  },
+  workflowSteps: {
+    gap: 8,
+  },
+  workflowItem: {
+    marginBottom: 8,
+  },
+  workflowStep: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  completedStep: {
+    backgroundColor: colors.success + '10',
+    borderColor: colors.success,
+  },
+  pendingStep: {
+    backgroundColor: colors.gray[50],
+    borderColor: colors.gray[200],
+  },
+  stepIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  completedIcon: {
+    backgroundColor: colors.success,
+  },
+  pendingIcon: {
+    backgroundColor: colors.gray[200],
+  },
+  stepContent: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 4,
+  },
+  stepStatus: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.primary,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  stepDuration: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    marginBottom: 2,
+  },
+  stepDate: {
+    fontSize: 12,
     color: colors.text.secondary,
   },
-  menuButton: {
+  workflowConnector: {
+    width: 2,
+    height: 20,
+    backgroundColor: colors.border,
+    marginLeft: 15,
+    marginVertical: 4,
+  },
+  commentsContainer: {
+    padding: 20,
+  },
+  emptyComments: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyCommentsText: {
+    fontSize: 16,
+    color: colors.text.secondary,
+    marginTop: 16,
+  },
+  commentItem: {
+    backgroundColor: colors.surface,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  commentAction: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+    textTransform: 'capitalize',
+  },
+  commentDate: {
+    fontSize: 12,
+    color: colors.text.tertiary,
+  },
+  commentText: {
+    fontSize: 14,
+    color: colors.text.primary,
+    lineHeight: 20,
+  },
+  fab: {
     position: 'absolute',
     bottom: 20,
     right: 20,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.gray[200],
-    shadowColor: colors.shadow.sm,
+    justifyContent: 'center',
+    shadowColor: colors.shadow.lg,
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -457,20 +801,15 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: colors.surface,
     borderRadius: 16,
-    padding: 0,
+    padding: 24,
     width: '100%',
     maxWidth: 400,
-    borderWidth: 1,
-    borderColor: colors.gray[200],
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
+    marginBottom: 20,
   },
   modalTitle: {
     fontSize: 18,
@@ -478,13 +817,10 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   closeButton: {
-    padding: 6,
-    borderRadius: 16,
-    backgroundColor: colors.gray[50],
+    padding: 4,
   },
   commentSection: {
-    padding: 20,
-    paddingTop: 0,
+    marginBottom: 24,
   },
   commentLabel: {
     fontSize: 14,
@@ -494,34 +830,38 @@ const styles = StyleSheet.create({
   },
   commentInput: {
     borderWidth: 1,
-    borderColor: colors.gray[200],
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
     color: colors.text.primary,
-    backgroundColor: colors.surface,
-    textAlignVertical: 'top',
-    minHeight: 60,
+    minHeight: 80,
   },
   actionButtons: {
-    padding: 20,
-    paddingTop: 0,
-    gap: 8,
+    gap: 12,
   },
   actionButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.gray[200],
-    backgroundColor: colors.surface,
+    gap: 8,
+  },
+  approveButton: {
+    backgroundColor: colors.success,
+  },
+  rejectButton: {
+    backgroundColor: colors.error,
+  },
+  requestButton: {
+    backgroundColor: colors.warning,
   },
   actionButtonText: {
-    color: colors.primary,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: colors.text.inverse,
   },
 });
 

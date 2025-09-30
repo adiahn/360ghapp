@@ -55,6 +55,19 @@ const MemoDetailScreen = ({ route, navigation }: any) => {
     }, [contactId])
   );
 
+  // Set navigation title based on contact name
+  useEffect(() => {
+    if (contact) {
+      navigation.setOptions({
+        title: contact.title || contact.name,
+        headerTitleStyle: {
+          fontWeight: '600',
+          fontSize: 16,
+        },
+      });
+    }
+  }, [contact, navigation]);
+
   const handleAction = async (action: MemoStatus) => {
     if (!selectedMemo) return;
 
@@ -157,20 +170,9 @@ const MemoDetailScreen = ({ route, navigation }: any) => {
     >
       <View style={styles.memoHeader}>
         <View style={styles.titleContainer}>
-          <Text style={styles.memoTitle} numberOfLines={2}>
+          <Text style={styles.memoTitle} numberOfLines={1}>
             {item.title}
           </Text>
-          <View style={styles.priorityIndicator}>
-            <View
-              style={[
-                styles.priorityDot,
-                { backgroundColor: getPriorityColor(item.priority) }
-              ]}
-            />
-            <Text style={styles.priorityText}>
-              {item.priority.toUpperCase()}
-            </Text>
-          </View>
         </View>
         
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
@@ -186,7 +188,7 @@ const MemoDetailScreen = ({ route, navigation }: any) => {
       </View>
       
       <View style={styles.contentContainer}>
-        <Text style={styles.memoContent} numberOfLines={4}>
+        <Text style={styles.memoContent} numberOfLines={2}>
           {item.content}
         </Text>
       </View>
@@ -338,9 +340,9 @@ const styles = StyleSheet.create({
   },
   memoCard: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 20,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
     shadowColor: colors.shadow.sm,
     shadowOffset: {
       width: 0,
@@ -356,40 +358,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   titleContainer: {
     flex: 1,
     marginRight: 16,
   },
   memoTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text.primary,
-    lineHeight: 28,
-    marginBottom: 8,
-  },
-  priorityIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.gray[50],
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    alignSelf: 'flex-start',
-  },
-  priorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  priorityText: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    lineHeight: 22,
+    marginBottom: 6,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -414,19 +394,19 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   contentContainer: {
-    marginBottom: 20,
+    marginBottom: 8,
   },
   memoContent: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.text.secondary,
-    lineHeight: 24,
+    lineHeight: 20,
     fontStyle: 'italic',
   },
   memoFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 16,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: colors.gray[100],
   },
