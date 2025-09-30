@@ -8,10 +8,10 @@ import {
   Alert,
   StyleSheet,
   Animated,
-  SafeAreaView,
   Dimensions,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -240,76 +240,69 @@ const MemosScreen = ({ navigation }: any) => {
             </TouchableOpacity>
           </View>
 
-          {/* Sidebar Content */}
-          <View style={styles.sidebarContent}>
-            <Text style={styles.sectionTitle}>Navigation</Text>
-            
-            <TouchableOpacity 
-              style={[styles.menuItem, activeTab === 'home' && styles.activeMenuItem]}
-              onPress={() => selectTab('home')}
-              activeOpacity={0.7}
-            >
-              <View style={styles.menuItemIcon}>
-                <Ionicons 
-                  name="home" 
-                  size={22} 
-                  color={activeTab === 'home' ? colors.primary : colors.text.secondary} 
-                />
-              </View>
-              <View style={styles.menuItemContent}>
-                <Text style={[
-                  styles.menuText,
-                  activeTab === 'home' && styles.activeMenuText
-                ]}>
-                  Home
-                </Text>
-                <Text style={styles.menuSubtext}>
-                  Personnel memos
-                </Text>
-              </View>
-              {activeTab === 'home' && (
-                <View style={styles.activeIndicator} />
-              )}
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.menuItem, activeTab === 'mda' && styles.activeMenuItem]}
-              onPress={() => selectTab('mda')}
-              activeOpacity={0.7}
-            >
-              <View style={styles.menuItemIcon}>
-                <Ionicons 
-                  name="business" 
-                  size={22} 
-                  color={activeTab === 'mda' ? colors.primary : colors.text.secondary} 
-                />
-              </View>
-              <View style={styles.menuItemContent}>
-                <Text style={[
-                  styles.menuText,
-                  activeTab === 'mda' && styles.activeMenuText
-                ]}>
-                  MDA's
-                </Text>
-                <Text style={styles.menuSubtext}>
-                  Ministry memos
-                </Text>
-              </View>
-              {activeTab === 'mda' && (
-                <View style={styles.activeIndicator} />
-              )}
-            </TouchableOpacity>
+          {/* Scrollable Content Area */}
+          <View style={styles.scrollableContent}>
+            <View style={styles.sidebarContent}>
+              <Text style={styles.sectionTitle}>Navigation</Text>
+              
+              <TouchableOpacity 
+                style={[styles.menuItem, activeTab === 'home' && styles.activeMenuItem]}
+                onPress={() => selectTab('home')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.menuItemIcon}>
+                  <Ionicons 
+                    name="home" 
+                    size={22} 
+                    color={activeTab === 'home' ? colors.primary : colors.text.secondary} 
+                  />
+                </View>
+                <View style={styles.menuItemContent}>
+                  <Text style={[
+                    styles.menuText,
+                    activeTab === 'home' && styles.activeMenuText
+                  ]}>
+                    Home
+                  </Text>
+                  <Text style={styles.menuSubtext}>
+                    Personnel memos
+                  </Text>
+                </View>
+                {activeTab === 'home' && (
+                  <View style={styles.activeIndicator} />
+                )}
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.menuItem, activeTab === 'mda' && styles.activeMenuItem]}
+                onPress={() => selectTab('mda')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.menuItemIcon}>
+                  <Ionicons 
+                    name="business" 
+                    size={22} 
+                    color={activeTab === 'mda' ? colors.primary : colors.text.secondary} 
+                  />
+                </View>
+                <View style={styles.menuItemContent}>
+                  <Text style={[
+                    styles.menuText,
+                    activeTab === 'mda' && styles.activeMenuText
+                  ]}>
+                    MDA's
+                  </Text>
+                  <Text style={styles.menuSubtext}>
+                    Ministry memos
+                  </Text>
+                </View>
+                {activeTab === 'mda' && (
+                  <View style={styles.activeIndicator} />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Sidebar Footer */}
-          <View style={styles.sidebarFooter}>
-            <Text style={styles.footerText}>
-              Katsina State Government
-            </Text>
-            <Text style={styles.footerSubtext}>
-              Memo Management System
-            </Text>
-          </View>
         </SafeAreaView>
       </Animated.View>
 
@@ -442,10 +435,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sidebarContent: {
+  scrollableContent: {
     flex: 1,
+    minHeight: 0,
+    paddingBottom: 80,
+  },
+  sidebarContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
+    paddingBottom: 16,
   },
   sectionTitle: {
     fontSize: 12,
@@ -516,24 +514,6 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: colors.primary,
-  },
-  sidebarFooter: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  footerText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.text.primary,
-    marginBottom: 2,
-  },
-  footerSubtext: {
-    fontSize: 11,
-    color: colors.text.secondary,
-    fontWeight: '400',
   },
   listContainer: {
     flexGrow: 1,
