@@ -17,6 +17,7 @@ import { Contact, Memo, MemoStatus } from '../types';
 import { DataService } from '../services/DataService';
 import { globalStyles } from '../styles/globalStyles';
 import { colors } from '../styles/colors';
+import BiometricAuthModal from '../components/BiometricAuthModal';
 
 const MemoDetailScreen = ({ route, navigation }: any) => {
   const { contactId } = route.params;
@@ -25,6 +26,8 @@ const MemoDetailScreen = ({ route, navigation }: any) => {
   const [loading, setLoading] = useState(true);
   const [selectedMemo, setSelectedMemo] = useState<Memo | null>(null);
   const [showActionModal, setShowActionModal] = useState(false);
+  const [showBiometricModal, setShowBiometricModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<MemoStatus | null>(null);
   const [actionComment, setActionComment] = useState('');
 
   const loadData = async () => {
@@ -55,17 +58,33 @@ const MemoDetailScreen = ({ route, navigation }: any) => {
   const handleAction = async (action: MemoStatus) => {
     if (!selectedMemo) return;
 
+    // Set the pending action and show biometric modal
+    setPendingAction(action);
+    setShowActionModal(false);
+    setShowBiometricModal(true);
+  };
+
+  const handleBiometricSuccess = async () => {
+    if (!selectedMemo || !pendingAction) return;
+
     try {
-      await DataService.updateMemoStatus(selectedMemo.id, action, actionComment);
-      setShowActionModal(false);
+      await DataService.updateMemoStatus(selectedMemo.id, pendingAction, actionComment);
+      setShowBiometricModal(false);
       setActionComment('');
       setSelectedMemo(null);
+      setPendingAction(null);
       await loadData(); // Refresh data
-      Alert.alert('Success', `Memo ${action} successfully`);
+      Alert.alert('Success', `Memo ${pendingAction} successfully`);
     } catch (error) {
       console.error('Error updating memo:', error);
       Alert.alert('Error', 'Failed to update memo status');
     }
+  };
+
+  const handleBiometricCancel = () => {
+    setShowBiometricModal(false);
+    setPendingAction(null);
+    setShowActionModal(true); // Return to action modal
   };
 
   const getStatusColor = (status: MemoStatus) => {
@@ -100,6 +119,23 @@ const MemoDetailScreen = ({ route, navigation }: any) => {
     }
   };
 
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return 'checkmark-circle';
+      case 'rejected':
+        return 'close-circle';
+      case 'request_details':
+        return 'help-circle';
+      case 'pending':
+        return 'time';
+      case 'archived':
+        return 'archive';
+      default:
+        return 'help-circle';
+    }
+  };
+
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -115,42 +151,57 @@ const MemoDetailScreen = ({ route, navigation }: any) => {
     <TouchableOpacity
       style={styles.memoCard}
       onPress={() => {
-        setSelectedMemo(item);
-        setShowActionModal(true);
+        navigation.navigate('MemoView', { memoId: item.id });
       }}
-      activeOpacity={0.6}
+      activeOpacity={0.7}
     >
       <View style={styles.memoHeader}>
-        <Text style={styles.memoTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
+        <View style={styles.titleContainer}>
+          <Text style={styles.memoTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <View style={styles.priorityIndicator}>
+            <View
+              style={[
+                styles.priorityDot,
+                { backgroundColor: getPriorityColor(item.priority) }
+              ]}
+            />
+            <Text style={styles.priorityText}>
+              {item.priority.toUpperCase()}
+            </Text>
+          </View>
+        </View>
+        
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+          <Ionicons 
+            name={getStatusIcon(item.status)} 
+            size={14} 
+            color={colors.text.inverse} 
+          />
           <Text style={styles.statusText}>
-            {item.status.replace('_', ' ').toUpperCase()}
+            {item.status.replace('_', ' ')}
           </Text>
         </View>
       </View>
       
-      <Text style={styles.memoContent} numberOfLines={3}>
-        {item.content}
-      </Text>
+      <View style={styles.contentContainer}>
+        <Text style={styles.memoContent} numberOfLines={4}>
+          {item.content}
+        </Text>
+      </View>
       
       <View style={styles.memoFooter}>
-        <View style={styles.priorityContainer}>
-          <View
-            style={[
-              styles.priorityDot,
-              { backgroundColor: getPriorityColor(item.priority) }
-            ]}
-          />
-          <Text style={styles.priorityText}>
-            {item.priority.toUpperCase()} PRIORITY
+        <View style={styles.dateContainer}>
+          <Ionicons name="time-outline" size={14} color={colors.text.tertiary} />
+          <Text style={styles.memoDate}>
+            {formatDate(item.date)}
           </Text>
         </View>
         
-        <Text style={styles.memoDate}>
-          {formatDate(item.date)}
-        </Text>
+        <View style={styles.actionIndicator}>
+          <Ionicons name="chevron-forward" size={16} color={colors.gray[400]} />
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -159,31 +210,47 @@ const MemoDetailScreen = ({ route, navigation }: any) => {
     <Modal
       visible={showActionModal}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={() => setShowActionModal(false)}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Take Action</Text>
-          <Text style={[globalStyles.body, { marginBottom: 16 }]}>
-            {selectedMemo?.title}
-          </Text>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Take Action</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowActionModal(false)}
+            >
+              <Ionicons name="close" size={24} color={colors.text.tertiary} />
+            </TouchableOpacity>
+          </View>
           
-          <TextInput
-            style={styles.commentInput}
-            placeholder="Add a comment (optional)"
-            value={actionComment}
-            onChangeText={setActionComment}
-            multiline
-            numberOfLines={3}
-          />
+          <View style={styles.memoPreview}>
+            <Text style={styles.memoPreviewTitle}>{selectedMemo?.title}</Text>
+            <Text style={styles.memoPreviewContent} numberOfLines={2}>
+              {selectedMemo?.content}
+            </Text>
+          </View>
+          
+          <View style={styles.commentSection}>
+            <Text style={styles.commentLabel}>Add a comment (optional)</Text>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Enter your comments here..."
+              value={actionComment}
+              onChangeText={setActionComment}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+          </View>
           
           <View style={styles.actionButtons}>
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: colors.success }]}
               onPress={() => handleAction('approved')}
             >
-              <Ionicons name="checkmark" size={20} color={colors.white} />
+              <Ionicons name="checkmark-circle" size={20} color={colors.text.inverse} />
               <Text style={styles.actionButtonText}>Approve</Text>
             </TouchableOpacity>
             
@@ -191,7 +258,7 @@ const MemoDetailScreen = ({ route, navigation }: any) => {
               style={[styles.actionButton, { backgroundColor: colors.error }]}
               onPress={() => handleAction('rejected')}
             >
-              <Ionicons name="close" size={20} color={colors.white} />
+              <Ionicons name="close-circle" size={20} color={colors.text.inverse} />
               <Text style={styles.actionButtonText}>Reject</Text>
             </TouchableOpacity>
             
@@ -199,25 +266,18 @@ const MemoDetailScreen = ({ route, navigation }: any) => {
               style={[styles.actionButton, { backgroundColor: colors.warning }]}
               onPress={() => handleAction('request_details')}
             >
-              <Ionicons name="help-circle" size={20} color={colors.white} />
+              <Ionicons name="help-circle" size={20} color={colors.text.inverse} />
               <Text style={styles.actionButtonText}>Request Details</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.gray }]}
+              style={[styles.actionButton, { backgroundColor: colors.gray[500] }]}
               onPress={() => handleAction('pending')}
             >
-              <Ionicons name="time" size={20} color={colors.white} />
+              <Ionicons name="time" size={20} color={colors.text.inverse} />
               <Text style={styles.actionButtonText}>Leave Pending</Text>
             </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => setShowActionModal(false)}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -225,12 +285,12 @@ const MemoDetailScreen = ({ route, navigation }: any) => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <View style={styles.emptyIcon}>
-        <Ionicons name="document-outline" size={48} color={colors.gray[300]} />
+      <View style={styles.emptyIconContainer}>
+        <Ionicons name="document-outline" size={64} color={colors.gray[300]} />
       </View>
       <Text style={styles.emptyTitle}>No Memos Found</Text>
       <Text style={styles.emptySubtitle}>
-        No memos have been submitted by this ministry yet.
+        This contact hasn't sent any memos yet.
       </Text>
     </View>
   );
@@ -255,6 +315,14 @@ const MemoDetailScreen = ({ route, navigation }: any) => {
       />
       
       {renderActionModal()}
+      
+      <BiometricAuthModal
+        visible={showBiometricModal}
+        onClose={handleBiometricCancel}
+        onSuccess={handleBiometricSuccess}
+        action={pendingAction ? pendingAction.replace('_', ' ') : ''}
+        memoTitle={selectedMemo?.title}
+      />
     </View>
   );
 };
@@ -266,137 +334,226 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     flexGrow: 1,
+    padding: 20,
   },
   memoCard: {
     backgroundColor: colors.surface,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.gray[200],
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    shadowColor: colors.shadow.sm,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.gray[200],
   },
   memoHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 16,
+  },
+  titleContainer: {
+    flex: 1,
+    marginRight: 16,
   },
   memoTitle: {
-    fontSize: 17,
-    fontWeight: '500',
+    fontSize: 20,
+    fontWeight: '700',
     color: colors.text.primary,
-    flex: 1,
-    marginRight: 12,
+    lineHeight: 28,
+    marginBottom: 8,
+  },
+  priorityIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.gray[50],
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  priorityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  priorityText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: colors.shadow.sm,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.6,
+    shadowRadius: 2,
+    elevation: 1,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text.inverse,
+    marginLeft: 6,
+    textTransform: 'capitalize',
+  },
+  contentContainer: {
+    marginBottom: 20,
   },
   memoContent: {
-    fontSize: 15,
+    fontSize: 16,
     color: colors.text.secondary,
-    lineHeight: 20,
-    marginBottom: 12,
+    lineHeight: 24,
+    fontStyle: 'italic',
   },
   memoFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray[100],
   },
-  priorityContainer: {
+  dateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  priorityDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 6,
-  },
-  priorityText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.text.tertiary,
-  },
   memoDate: {
-    fontSize: 13,
+    fontSize: 14,
     color: colors.text.tertiary,
+    marginLeft: 6,
+    fontWeight: '500',
+  },
+  actionIndicator: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: colors.gray[50],
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalContent: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: 24,
+    padding: 0,
     width: '100%',
-    maxWidth: 400,
-    shadowColor: colors.shadow.lg,
+    maxWidth: 420,
+    shadowColor: colors.shadow.md,
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 4,
     },
-    shadowOpacity: 1,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray[100],
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: colors.gray[50],
+  },
+  memoPreview: {
+    padding: 24,
+    paddingBottom: 16,
+    backgroundColor: colors.gray[50],
+    margin: 24,
+    marginTop: 0,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.gray[100],
+  },
+  memoPreviewTitle: {
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text.primary,
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  memoPreviewContent: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    lineHeight: 20,
+  },
+  commentSection: {
+    padding: 24,
+    paddingTop: 0,
+  },
+  commentLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 12,
   },
   commentInput: {
     borderWidth: 1,
-    borderColor: colors.gray[300],
+    borderColor: colors.gray[200],
     borderRadius: 12,
     padding: 16,
-    marginBottom: 24,
-    textAlignVertical: 'top',
     fontSize: 16,
     color: colors.text.primary,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface,
+    textAlignVertical: 'top',
     minHeight: 80,
   },
   actionButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 24,
+    padding: 24,
+    paddingTop: 0,
+    gap: 12,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    justifyContent: 'center',
+    paddingVertical: 16,
     paddingHorizontal: 20,
     borderRadius: 12,
-    marginBottom: 12,
-    minWidth: '48%',
-    justifyContent: 'center',
+    shadowColor: colors.shadow.sm,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.6,
+    shadowRadius: 2,
+    elevation: 1,
   },
   actionButtonText: {
     color: colors.text.inverse,
+    fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
-    fontSize: 14,
-  },
-  cancelButton: {
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  cancelButtonText: {
-    color: colors.text.secondary,
-    fontSize: 16,
-    fontWeight: '500',
   },
   emptyState: {
     flex: 1,
@@ -405,26 +562,30 @@ const styles = StyleSheet.create({
     paddingVertical: 80,
     paddingHorizontal: 40,
   },
-  emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#F3F4F6',
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: colors.gray[50],
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 32,
+    borderWidth: 2,
+    borderColor: colors.gray[100],
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 24,
+    fontWeight: '700',
     color: colors.text.primary,
-    marginBottom: 8,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 16,
     color: colors.text.secondary,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
+    maxWidth: 280,
   },
 });
 

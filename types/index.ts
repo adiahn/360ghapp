@@ -7,6 +7,15 @@ export interface Contact {
   avatar?: string;
 }
 
+export interface Ministry {
+  id: string;
+  name: string;
+  description: string;
+  lastMemo?: Memo;
+  unreadCount: number;
+  avatar?: string;
+}
+
 export interface Memo {
   id: string;
   contactId: string;

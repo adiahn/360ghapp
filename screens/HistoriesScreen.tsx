@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  StyleSheet,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,7 +58,7 @@ const HistoriesScreen = () => {
 
   const getContactName = (contactId: string) => {
     const contact = contacts.find(c => c.id === contactId);
-    return contact?.name || 'Unknown Contact';
+    return contact?.title || 'Unknown Contact';
   };
 
   const getMemoTitle = (memoId: string) => {
@@ -74,9 +75,9 @@ const HistoriesScreen = () => {
       case 'request_details':
         return colors.warning;
       case 'pending':
-        return colors.gray;
+        return colors.gray[500];
       default:
-        return colors.gray;
+        return colors.gray[500];
     }
   };
 
@@ -128,47 +129,57 @@ const HistoriesScreen = () => {
   );
 
   const renderActionItem = ({ item }: { item: MemoAction }) => (
-    <View style={globalStyles.card}>
+    <View style={styles.actionCard}>
       <View style={styles.actionHeader}>
         <View style={styles.actionInfo}>
-          <Ionicons
-            name={getActionIcon(item.action) as any}
-            size={24}
-            color={getActionColor(item.action)}
-          />
+          <View style={styles.iconContainer}>
+            <Ionicons
+              name={getActionIcon(item.action) as any}
+              size={20}
+              color={getActionColor(item.action)}
+            />
+          </View>
           <View style={styles.actionDetails}>
-            <Text style={globalStyles.subtitle}>
+            <Text style={styles.memoTitle} numberOfLines={2}>
               {getMemoTitle(item.memoId)}
             </Text>
-            <Text style={globalStyles.caption}>
+            <Text style={styles.contactName}>
               {getContactName(memos.find(m => m.id === item.memoId)?.contactId || '')}
             </Text>
           </View>
         </View>
-        <Text style={globalStyles.caption}>
-          {formatDate(item.timestamp)}
-        </Text>
+        
+        <View style={[styles.statusBadge, { backgroundColor: getActionColor(item.action) }]}>
+          <Text style={styles.statusText}>
+            {item.action.replace('_', ' ')}
+          </Text>
+        </View>
       </View>
       
-      <View style={styles.actionStatus}>
-        <Text style={[styles.statusText, { color: getActionColor(item.action) }]}>
-          {item.action.replace('_', ' ').toUpperCase()}
+      <View style={styles.timestampContainer}>
+        <Ionicons name="time-outline" size={14} color={colors.text.tertiary} />
+        <Text style={styles.timestamp}>
+          {formatDate(item.timestamp)}
         </Text>
       </View>
       
       {item.comment && (
         <View style={styles.commentContainer}>
-          <Text style={globalStyles.body}>{item.comment}</Text>
+          <Text style={styles.commentLabel}>Comment:</Text>
+          <Text style={styles.commentText}>{item.comment}</Text>
         </View>
       )}
     </View>
   );
 
   const renderEmptyState = () => (
-    <View style={globalStyles.emptyState}>
-      <Ionicons name="time-outline" size={64} color={colors.lightGray} />
-      <Text style={globalStyles.emptyStateText}>
-        No history found.{'\n'}Your actions on memos will appear here.
+    <View style={styles.emptyState}>
+      <View style={styles.emptyIconContainer}>
+        <Ionicons name="time-outline" size={64} color={colors.gray[300]} />
+      </View>
+      <Text style={styles.emptyTitle}>No History Found</Text>
+      <Text style={styles.emptySubtitle}>
+        Your actions on memos will appear here.
       </Text>
     </View>
   );
@@ -182,7 +193,7 @@ const HistoriesScreen = () => {
   }
 
   return (
-    <View style={globalStyles.container}>
+    <View style={styles.container}>
       <View style={styles.filterContainer}>
         {renderFilterButton('all', 'All')}
         {renderFilterButton('approved', 'Approved')}
@@ -205,20 +216,32 @@ const HistoriesScreen = () => {
   );
 };
 
-const styles = {
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   filterContainer: {
     flexDirection: 'row',
     padding: 16,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.lightGray,
+    borderBottomColor: colors.gray[100],
   },
   filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-    backgroundColor: colors.lightGray,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    marginRight: 12,
+    backgroundColor: colors.gray[100],
+    shadowColor: colors.shadow.sm,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.6,
+    shadowRadius: 2,
+    elevation: 1,
   },
   filterButtonActive: {
     backgroundColor: colors.primary,
@@ -226,44 +249,151 @@ const styles = {
   filterButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: colors.text.secondary,
   },
   filterButtonTextActive: {
-    color: colors.white,
+    color: colors.text.inverse,
   },
   listContainer: {
     padding: 16,
     flexGrow: 1,
   },
+  actionCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: colors.shadow.sm,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.gray[200],
+  },
   actionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   actionInfo: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flex: 1,
+    marginRight: 16,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.gray[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
   },
   actionDetails: {
-    marginLeft: 12,
     flex: 1,
   },
-  actionStatus: {
-    marginBottom: 8,
+  memoTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text.primary,
+    lineHeight: 24,
+    marginBottom: 4,
+  },
+  contactName: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    fontWeight: '500',
+  },
+  statusBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: colors.shadow.sm,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.6,
+    shadowRadius: 2,
+    elevation: 1,
   },
   statusText: {
     fontSize: 12,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
+    fontWeight: '600',
+    color: colors.text.inverse,
+    textTransform: 'capitalize',
+  },
+  timestampContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray[100],
+  },
+  timestamp: {
+    fontSize: 14,
+    color: colors.text.tertiary,
+    marginLeft: 6,
+    fontWeight: '500',
   },
   commentContainer: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.gray[50],
     padding: 12,
-    borderRadius: 8,
-    marginTop: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.gray[100],
   },
-};
+  commentLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 6,
+  },
+  commentText: {
+    fontSize: 15,
+    color: colors.text.secondary,
+    lineHeight: 22,
+    fontStyle: 'italic',
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+    paddingHorizontal: 40,
+  },
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: colors.gray[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 32,
+    borderWidth: 2,
+    borderColor: colors.gray[100],
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    maxWidth: 280,
+  },
+});
 
 export default HistoriesScreen;

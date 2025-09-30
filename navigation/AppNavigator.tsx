@@ -8,6 +8,8 @@ import MemosScreen from '../screens/MemosScreen';
 import HistoriesScreen from '../screens/HistoriesScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import MemoDetailScreen from '../screens/MemoDetailScreen';
+import MemoViewScreen from '../screens/MemoViewScreen';
+import MinistryDetailScreen from '../screens/MinistryDetailScreen';
 import { colors } from '../styles/colors';
 
 const Tab = createBottomTabNavigator();
@@ -19,7 +21,14 @@ const MemosStack = () => (
       name="MemosList" 
       component={MemosScreen} 
       options={{ 
-        title: 'Memos',
+        headerShown: false,
+      }} 
+    />
+    <Stack.Screen 
+      name="MemoDetail" 
+      component={MemoDetailScreen} 
+      options={{ 
+        title: 'Memo Details',
         headerStyle: { 
           backgroundColor: colors.surface,
           borderBottomColor: colors.gray[200],
@@ -36,10 +45,30 @@ const MemosStack = () => (
       }} 
     />
     <Stack.Screen 
-      name="MemoDetail" 
-      component={MemoDetailScreen} 
+      name="MemoView" 
+      component={MemoViewScreen} 
       options={{ 
-        title: 'Memo Details',
+        title: 'Memo View',
+        headerStyle: { 
+          backgroundColor: colors.surface,
+          borderBottomColor: colors.gray[200],
+          borderBottomWidth: 0.5,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        headerTintColor: colors.text.primary,
+        headerTitleStyle: { 
+          fontWeight: '600',
+          fontSize: 20,
+        },
+        headerBackTitleVisible: false,
+      }} 
+    />
+    <Stack.Screen 
+      name="MinistryDetail" 
+      component={MinistryDetailScreen} 
+      options={{ 
+        title: 'Ministry Details',
         headerStyle: { 
           backgroundColor: colors.surface,
           borderBottomColor: colors.gray[200],

@@ -13,7 +13,10 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "This app uses Face ID to secure memo actions and ensure only authorized users can approve, reject, or modify memos."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,10 +24,23 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ],
+      "package": "com.adiahn.x360ghapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "304c8f0e-25eb-4e2e-850f-f83147ec97e2"
+      }
+    },
+    "owner": "adiahn"
   }
 }

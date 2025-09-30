@@ -7,6 +7,10 @@ import {
   RefreshControl,
   Alert,
   StyleSheet,
+  Animated,
+  SafeAreaView,
+  Dimensions,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,11 +19,21 @@ import { Contact, Memo } from '../types';
 import { DataService } from '../services/DataService';
 import { globalStyles } from '../styles/globalStyles';
 import { colors } from '../styles/colors';
+import BiometricAuthModal from '../components/BiometricAuthModal';
+import MDAScreen from './MDAScreen';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const MemosScreen = ({ navigation }: any) => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'home' | 'mda'>('home');
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuAnimation] = useState(new Animated.Value(0));
+
+  // Responsive sidebar width (60% of screen width, min 280px, max 320px)
+  const sidebarWidth = Math.min(Math.max(screenWidth * 0.6, 280), 320);
 
   const loadData = async () => {
     try {
@@ -55,6 +69,27 @@ const MemosScreen = ({ navigation }: any) => {
       loadData();
     }, [])
   );
+
+  const toggleMenu = () => {
+    const toValue = showMenu ? 0 : 1;
+    setShowMenu(!showMenu);
+    
+    Animated.timing(menuAnimation, {
+      toValue,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const selectTab = (tab: 'home' | 'mda') => {
+    setActiveTab(tab);
+    setShowMenu(false);
+    Animated.timing(menuAnimation, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  };
 
   const formatLastMessage = (contact: Contact) => {
     if (contact.lastMemo) {
@@ -110,9 +145,6 @@ const MemosScreen = ({ navigation }: any) => {
           </View>
           <View style={styles.contactDetails}>
             <Text style={styles.contactName} numberOfLines={1}>
-              {item.name}
-            </Text>
-            <Text style={styles.contactTitle} numberOfLines={1}>
               {item.title}
             </Text>
             <Text style={styles.contactSubtitle} numberOfLines={1}>
@@ -159,23 +191,158 @@ const MemosScreen = ({ navigation }: any) => {
   }
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={contacts}
-        keyExtractor={(item) => item.id}
-        renderItem={renderContactItem}
-        contentContainerStyle={styles.listContainer}
-        refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-          />
-        }
-        ListEmptyComponent={renderEmptyState}
-        showsVerticalScrollIndicator={false}
-      />
-    </View>
+    <SafeAreaView style={styles.container}>
+      {/* Header with Hamburger Menu */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.menuButton} onPress={toggleMenu}>
+          <Ionicons name="menu" size={24} color={colors.text.primary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {activeTab === 'home' ? 'Home' : 'MDA\'s'}
+        </Text>
+        <View style={styles.headerRight} />
+      </View>
+
+      {/* Animated Sidebar Menu */}
+      <Animated.View 
+        style={[
+          styles.sidebar,
+          {
+            width: sidebarWidth,
+            transform: [{
+              translateX: menuAnimation.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-sidebarWidth, 0],
+              })
+            }],
+            opacity: menuAnimation,
+          }
+        ]}
+      >
+        <SafeAreaView style={styles.sidebarSafeArea}>
+          {/* Sidebar Header */}
+          <View style={styles.sidebarHeader}>
+            <View style={styles.sidebarHeaderContent}>
+              <View style={styles.governorImage}>
+                <Ionicons name="person" size={20} color={colors.text.secondary} />
+              </View>
+              <View style={styles.governorInfo}>
+                <Text style={styles.governorName}>Gov. Dikko Umaru Radda</Text>
+                <Text style={styles.governorTitle}>Executive Governor</Text>
+              </View>
+            </View>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={toggleMenu}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={24} color={colors.text.secondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Sidebar Content */}
+          <View style={styles.sidebarContent}>
+            <Text style={styles.sectionTitle}>Navigation</Text>
+            
+            <TouchableOpacity 
+              style={[styles.menuItem, activeTab === 'home' && styles.activeMenuItem]}
+              onPress={() => selectTab('home')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.menuItemIcon}>
+                <Ionicons 
+                  name="home" 
+                  size={22} 
+                  color={activeTab === 'home' ? colors.primary : colors.text.secondary} 
+                />
+              </View>
+              <View style={styles.menuItemContent}>
+                <Text style={[
+                  styles.menuText,
+                  activeTab === 'home' && styles.activeMenuText
+                ]}>
+                  Home
+                </Text>
+                <Text style={styles.menuSubtext}>
+                  Personnel memos
+                </Text>
+              </View>
+              {activeTab === 'home' && (
+                <View style={styles.activeIndicator} />
+              )}
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.menuItem, activeTab === 'mda' && styles.activeMenuItem]}
+              onPress={() => selectTab('mda')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.menuItemIcon}>
+                <Ionicons 
+                  name="business" 
+                  size={22} 
+                  color={activeTab === 'mda' ? colors.primary : colors.text.secondary} 
+                />
+              </View>
+              <View style={styles.menuItemContent}>
+                <Text style={[
+                  styles.menuText,
+                  activeTab === 'mda' && styles.activeMenuText
+                ]}>
+                  MDA's
+                </Text>
+                <Text style={styles.menuSubtext}>
+                  Ministry memos
+                </Text>
+              </View>
+              {activeTab === 'mda' && (
+                <View style={styles.activeIndicator} />
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Sidebar Footer */}
+          <View style={styles.sidebarFooter}>
+            <Text style={styles.footerText}>
+              Katsina State Government
+            </Text>
+            <Text style={styles.footerSubtext}>
+              Memo Management System
+            </Text>
+          </View>
+        </SafeAreaView>
+      </Animated.View>
+
+      {/* Overlay when menu is open */}
+      {showMenu && (
+        <TouchableOpacity 
+          style={styles.overlay} 
+          onPress={toggleMenu}
+          activeOpacity={1}
+        />
+      )}
+
+      {/* Content */}
+      {activeTab === 'home' ? (
+        <FlatList
+          data={contacts}
+          keyExtractor={(item) => item.id}
+          renderItem={renderContactItem}
+          contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+            />
+          }
+          ListEmptyComponent={renderEmptyState}
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        <MDAScreen navigation={navigation} />
+      )}
+    </SafeAreaView>
   );
 };
 
@@ -183,6 +350,190 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.gray[200],
+  },
+  menuButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  headerRight: {
+    width: 40,
+  },
+  sidebar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    height: screenHeight,
+    backgroundColor: colors.surface,
+    zIndex: 999,
+    shadowColor: colors.shadow.lg,
+    shadowOffset: {
+      width: 4,
+      height: 0,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+  },
+  sidebarSafeArea: {
+    flex: 1,
+    backgroundColor: colors.surface,
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  sidebarHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  governorImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.gray[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  governorInfo: {
+    flex: 1,
+  },
+  governorName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 2,
+  },
+  governorTitle: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: colors.text.secondary,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sidebarContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    zIndex: 998,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 4,
+    minHeight: 48,
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  activeMenuItem: {
+    borderColor: colors.primary,
+    backgroundColor: 'transparent',
+  },
+  menuItemIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  menuItemContent: {
+    flex: 1,
+  },
+  menuText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text.primary,
+    marginBottom: 1,
+  },
+  activeMenuText: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  menuSubtext: {
+    fontSize: 13,
+    color: colors.text.secondary,
+    fontWeight: '400',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    right: 12,
+    top: '50%',
+    marginTop: -3,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+  },
+  sidebarFooter: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  footerText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.text.primary,
+    marginBottom: 2,
+  },
+  footerSubtext: {
+    fontSize: 11,
+    color: colors.text.secondary,
+    fontWeight: '400',
   },
   listContainer: {
     flexGrow: 1,
@@ -220,13 +571,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: colors.text.primary,
-    marginBottom: 2,
-  },
-  contactTitle: {
-    fontSize: 14,
-    color: colors.text.secondary,
-    fontWeight: '500',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   contactSubtitle: {
     fontSize: 15,

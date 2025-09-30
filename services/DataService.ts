@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Contact, Memo, MemoAction, MemoStatus } from '../types';
+import { Contact, Ministry, Memo, MemoAction, MemoStatus } from '../types';
 
 const STORAGE_KEYS = {
   CONTACTS: 'contacts',
+  MINISTRIES: 'ministries',
   MEMOS: 'memos',
   ACTIONS: 'actions',
 };
@@ -24,6 +25,25 @@ export class DataService {
       await AsyncStorage.setItem(STORAGE_KEYS.CONTACTS, JSON.stringify(contacts));
     } catch (error) {
       console.error('Error saving contacts:', error);
+    }
+  }
+
+  // Ministries
+  static async getMinistries(): Promise<Ministry[]> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.MINISTRIES);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error getting ministries:', error);
+      return [];
+    }
+  }
+
+  static async saveMinistries(ministries: Ministry[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.MINISTRIES, JSON.stringify(ministries));
+    } catch (error) {
+      console.error('Error saving ministries:', error);
     }
   }
 
@@ -111,21 +131,54 @@ export class DataService {
     const contacts: Contact[] = [
       {
         id: '1',
-        name: 'Dr. Ibrahim Musa',
-        title: 'Permanent Secretary',
+        name: 'Principal Private Secretary',
+        title: 'Principal Private Secretary',
         unreadCount: 3,
       },
       {
         id: '2',
-        name: 'Alhaji Aminu Sani',
+        name: 'Chief of Staff',
         title: 'Chief of Staff',
         unreadCount: 1,
       },
       {
         id: '3',
-        name: 'Hajiya Fatima Abdullahi',
+        name: 'Cabinet Secretary',
         title: 'Cabinet Secretary',
         unreadCount: 2,
+      },
+    ];
+
+    const ministries: Ministry[] = [
+      {
+        id: 'm1',
+        name: 'Ministry of Education',
+        description: 'Education and Human Development',
+        unreadCount: 5,
+      },
+      {
+        id: 'm2',
+        name: 'Ministry of Health',
+        description: 'Health and Social Services',
+        unreadCount: 3,
+      },
+      {
+        id: 'm3',
+        name: 'Ministry of Works',
+        description: 'Infrastructure and Public Works',
+        unreadCount: 2,
+      },
+      {
+        id: 'm4',
+        name: 'Ministry of Agriculture',
+        description: 'Agriculture and Rural Development',
+        unreadCount: 4,
+      },
+      {
+        id: 'm5',
+        name: 'Ministry of Finance',
+        description: 'Finance and Economic Planning',
+        unreadCount: 1,
       },
     ];
 
@@ -184,9 +237,56 @@ export class DataService {
         status: 'approved',
         priority: 'medium',
       },
+      // Ministry memos
+      {
+        id: 'm1',
+        contactId: 'm1',
+        title: 'Education Budget Allocation Request',
+        content: 'Request for additional budget allocation for the education sector to improve school facilities and teacher welfare.',
+        date: new Date('2024-01-17'),
+        status: 'pending',
+        priority: 'high',
+      },
+      {
+        id: 'm2',
+        contactId: 'm1',
+        title: 'School Feeding Program Update',
+        content: 'Status report on the school feeding program implementation across the state.',
+        date: new Date('2024-01-16'),
+        status: 'approved',
+        priority: 'medium',
+      },
+      {
+        id: 'm3',
+        contactId: 'm2',
+        title: 'Medical Equipment Procurement',
+        content: 'Request for approval to procure medical equipment for state hospitals and health centers.',
+        date: new Date('2024-01-18'),
+        status: 'pending',
+        priority: 'urgent',
+      },
+      {
+        id: 'm4',
+        contactId: 'm3',
+        title: 'Road Construction Project Phase 2',
+        content: 'Proposal for the second phase of the major road construction project.',
+        date: new Date('2024-01-15'),
+        status: 'request_details',
+        priority: 'high',
+      },
+      {
+        id: 'm5',
+        contactId: 'm4',
+        title: 'Agricultural Input Distribution',
+        content: 'Report on the distribution of agricultural inputs to farmers across the state.',
+        date: new Date('2024-01-14'),
+        status: 'approved',
+        priority: 'medium',
+      },
     ];
 
     await this.saveContacts(contacts);
+    await this.saveMinistries(ministries);
     await AsyncStorage.setItem(STORAGE_KEYS.MEMOS, JSON.stringify(memos));
   }
 }
