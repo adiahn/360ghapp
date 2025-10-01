@@ -531,12 +531,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   memoContainer: {
-    padding: 20,
+    padding: 16,
   },
   memoHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   refContainer: {
     flex: 1,
@@ -602,41 +602,41 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   salutation: {
-    fontSize: 16,
-    color: colors.text.primary,
-    marginBottom: 20,
-  },
-  subjectContainer: {
-    backgroundColor: colors.gray[50],
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 24,
-  },
-  subjectText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text.primary,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  contentContainer: {
-    marginBottom: 24,
-  },
-  contentText: {
-    fontSize: 16,
-    color: colors.text.primary,
-    lineHeight: 24,
-  },
-  closingContainer: {
-    marginTop: 20,
-  },
-  closingText: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.text.primary,
     marginBottom: 16,
   },
-  signatureName: {
+  subjectContainer: {
+    backgroundColor: colors.gray[50],
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  subjectText: {
     fontSize: 16,
+    fontWeight: '700',
+    color: colors.text.primary,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  contentContainer: {
+    marginBottom: 20,
+  },
+  contentText: {
+    fontSize: 14,
+    color: colors.text.primary,
+    lineHeight: 20,
+  },
+  closingContainer: {
+    marginTop: 16,
+  },
+  closingText: {
+    fontSize: 14,
+    color: colors.text.primary,
+    marginBottom: 12,
+  },
+  signatureName: {
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text.primary,
     marginBottom: 4,
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   workflowContainer: {
-    padding: 20,
+    padding: 16,
   },
   sectionTitle: {
     fontSize: 18,

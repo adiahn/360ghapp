@@ -52,7 +52,7 @@ const MemosStack = () => (
       name="MemoView" 
       component={MemoViewScreen} 
       options={{ 
-        title: 'Memo View',
+        title: '',
         headerStyle: { 
           backgroundColor: colors.surface,
           borderBottomColor: colors.gray[200],
@@ -63,9 +63,13 @@ const MemosStack = () => (
         headerTintColor: colors.text.primary,
         headerTitleStyle: { 
           fontWeight: '600',
-          fontSize: 20,
+          fontSize: 16,
         },
         headerBackTitleVisible: false,
+        headerBackTitle: '',
+        headerLeftContainerStyle: {
+          marginLeft: 16,
+        },
       }} 
     />
     <Stack.Screen 
