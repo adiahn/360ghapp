@@ -4,14 +4,16 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  RefreshControl,
   Alert,
+  ScrollView,
+  Modal,
+  TextInput,
   StyleSheet,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { Ministry, Memo } from '../types';
+import { Ministry, Memo, MemoStatus } from '../types';
 import { DataService } from '../services/DataService';
 import { globalStyles } from '../styles/globalStyles';
 import { colors } from '../styles/colors';
@@ -22,33 +24,29 @@ const MinistryDetailScreen = ({ route, navigation }: any) => {
   const [ministry, setMinistry] = useState<Ministry | null>(null);
   const [memos, setMemos] = useState<Memo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showBiometricModal, setShowBiometricModal] = useState(false);
   const [selectedMemo, setSelectedMemo] = useState<Memo | null>(null);
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [showBiometricModal, setShowBiometricModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<MemoStatus | null>(null);
+  const [actionComment, setActionComment] = useState('');
 
   const loadData = async () => {
     try {
       setLoading(true);
       const [ministriesData, memosData] = await Promise.all([
         DataService.getMinistries(),
-        DataService.getMemos(ministryId)
+        DataService.getMemos(ministryId),
       ]);
       
       const ministryData = ministriesData.find(m => m.id === ministryId);
       setMinistry(ministryData || null);
-      setMemos(memosData);
+      setMemos(memosData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert('Error', 'Failed to load ministry data');
+      Alert.alert('Error', 'Failed to load memo data');
     } finally {
       setLoading(false);
     }
-  };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
   };
 
   useFocusEffect(
@@ -56,6 +54,68 @@ const MinistryDetailScreen = ({ route, navigation }: any) => {
       loadData();
     }, [ministryId])
   );
+
+  // Set navigation title based on ministry name
+  useEffect(() => {
+    if (ministry) {
+      navigation.setOptions({
+        title: ministry.name,
+        headerTitleStyle: {
+          fontWeight: '600',
+          fontSize: 16,
+        },
+      });
+    }
+  }, [ministry, navigation]);
+
+  const handleAction = async (action: MemoStatus) => {
+    if (!selectedMemo) return;
+
+    // Set the pending action and show biometric modal
+    setPendingAction(action);
+    setShowActionModal(false);
+    setShowBiometricModal(true);
+  };
+
+  const handleBiometricSuccess = async () => {
+    if (!selectedMemo || !pendingAction) return;
+
+    try {
+      await DataService.updateMemoStatus(selectedMemo.id, pendingAction, actionComment);
+      setShowBiometricModal(false);
+      setActionComment('');
+      setSelectedMemo(null);
+      setPendingAction(null);
+      await loadData(); // Refresh data
+      Alert.alert('Success', `Memo ${pendingAction} successfully`);
+    } catch (error) {
+      console.error('Error updating memo:', error);
+      Alert.alert('Error', 'Failed to update memo status');
+    }
+  };
+
+  const handleBiometricCancel = () => {
+    setShowBiometricModal(false);
+    setPendingAction(null);
+    setShowActionModal(true); // Return to action modal
+  };
+
+  const getStatusColor = (status: MemoStatus) => {
+    switch (status) {
+      case 'approved':
+        return colors.success;
+      case 'rejected':
+        return colors.error;
+      case 'request_details':
+        return colors.warning;
+      case 'pending':
+        return colors.gray[500];
+      case 'archived':
+        return colors.text.secondary;
+      default:
+        return colors.gray[500];
+    }
+  };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -72,93 +132,163 @@ const MinistryDetailScreen = ({ route, navigation }: any) => {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'approved':
-        return colors.success;
+        return 'checkmark-circle';
       case 'rejected':
-        return colors.error;
+        return 'close-circle';
       case 'request_details':
-        return colors.warning;
+        return 'help-circle';
       case 'pending':
-        return colors.gray[500];
+        return 'time';
+      case 'archived':
+        return 'archive';
       default:
-        return colors.gray[500];
+        return 'help-circle';
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return 'Approved';
-      case 'rejected':
-        return 'Rejected';
-      case 'request_details':
-        return 'Request Details';
-      case 'pending':
-        return 'Pending';
-      default:
-        return status;
-    }
-  };
-
-  const handleMemoPress = (memo: Memo) => {
-    setSelectedMemo(memo);
-    setShowBiometricModal(true);
-  };
-
-  const handleBiometricSuccess = () => {
-    setShowBiometricModal(false);
-    if (selectedMemo) {
-      navigation.navigate('MemoView', { memoId: selectedMemo.id });
-    }
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   const renderMemoItem = ({ item }: { item: Memo }) => (
     <TouchableOpacity
       style={styles.memoCard}
-      onPress={() => handleMemoPress(item)}
-      activeOpacity={0.6}
+      onPress={() => {
+        navigation.navigate('MemoView', { memoId: item.id });
+      }}
+      activeOpacity={0.7}
     >
-      <View style={styles.memoContent}>
-        <View style={styles.memoHeader}>
-          <Text style={styles.memoTitle} numberOfLines={2}>
+      <View style={styles.memoHeader}>
+        <View style={styles.titleContainer}>
+          <Text style={styles.memoTitle} numberOfLines={1}>
             {item.title}
           </Text>
-          <View style={styles.memoBadges}>
-            <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(item.priority) }]}>
-              <Text style={styles.badgeText}>{item.priority.toUpperCase()}</Text>
-            </View>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-              <Text style={styles.badgeText}>{getStatusText(item.status)}</Text>
-            </View>
-          </View>
         </View>
         
-        <Text style={styles.memoContent} numberOfLines={3}>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+          <Ionicons 
+            name={getStatusIcon(item.status)} 
+            size={14} 
+            color={colors.text.inverse} 
+          />
+          <Text style={styles.statusText}>
+            {item.status.replace('_', ' ')}
+          </Text>
+        </View>
+      </View>
+      
+      <View style={styles.contentContainer}>
+        <Text style={styles.memoContent} numberOfLines={2}>
           {item.content}
         </Text>
-        
-        <View style={styles.memoFooter}>
+      </View>
+      
+      <View style={styles.memoFooter}>
+        <View style={styles.dateContainer}>
+          <Ionicons name="time-outline" size={14} color={colors.text.tertiary} />
           <Text style={styles.memoDate}>
-            {new Date(item.date).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
+            {formatDate(item.date)}
           </Text>
+        </View>
+        
+        <View style={styles.actionIndicator}>
           <Ionicons name="chevron-forward" size={16} color={colors.gray[400]} />
         </View>
       </View>
     </TouchableOpacity>
   );
 
+  const renderActionModal = () => (
+    <Modal
+      visible={showActionModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowActionModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Take Action</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowActionModal(false)}
+            >
+              <Ionicons name="close" size={24} color={colors.text.tertiary} />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.memoPreview}>
+            <Text style={styles.memoPreviewTitle}>{selectedMemo?.title}</Text>
+            <Text style={styles.memoPreviewContent} numberOfLines={2}>
+              {selectedMemo?.content}
+            </Text>
+          </View>
+          
+          <View style={styles.commentSection}>
+            <Text style={styles.commentLabel}>Add a comment (optional)</Text>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Enter your comments here..."
+              value={actionComment}
+              onChangeText={setActionComment}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+          </View>
+          
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.success }]}
+              onPress={() => handleAction('approved')}
+            >
+              <Ionicons name="checkmark-circle" size={20} color={colors.text.inverse} />
+              <Text style={styles.actionButtonText}>Approve</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.error }]}
+              onPress={() => handleAction('rejected')}
+            >
+              <Ionicons name="close-circle" size={20} color={colors.text.inverse} />
+              <Text style={styles.actionButtonText}>Reject</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.warning }]}
+              onPress={() => handleAction('request_details')}
+            >
+              <Ionicons name="help-circle" size={20} color={colors.text.inverse} />
+              <Text style={styles.actionButtonText}>Request Details</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.gray[500] }]}
+              onPress={() => handleAction('pending')}
+            >
+              <Ionicons name="time" size={20} color={colors.text.inverse} />
+              <Text style={styles.actionButtonText}>Leave Pending</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <View style={styles.emptyIcon}>
-        <Ionicons name="document-outline" size={48} color={colors.gray[300]} />
+      <View style={styles.emptyIconContainer}>
+        <Ionicons name="document-outline" size={64} color={colors.gray[300]} />
       </View>
       <Text style={styles.emptyTitle}>No Memos Found</Text>
       <Text style={styles.emptySubtitle}>
@@ -169,61 +299,31 @@ const MinistryDetailScreen = ({ route, navigation }: any) => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Ionicons name="refresh" size={24} color={colors.gray[400]} />
-        <Text style={styles.loadingText}>Loading memos...</Text>
-      </View>
-    );
-  }
-
-  if (!ministry) {
-    return (
-      <View style={styles.errorContainer}>
-        <Ionicons name="alert-circle" size={48} color={colors.error} />
-        <Text style={styles.errorTitle}>Ministry Not Found</Text>
-        <Text style={styles.errorSubtitle}>
-          The requested ministry could not be found.
-        </Text>
+      <View style={globalStyles.loadingContainer}>
+        <Text style={globalStyles.body}>Loading memos...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.ministryInfo}>
-          <View style={styles.ministryIcon}>
-            <Ionicons name="business" size={24} color={colors.primary} />
-          </View>
-          <View style={styles.ministryDetails}>
-            <Text style={styles.ministryName}>{ministry.name}</Text>
-            <Text style={styles.ministryDescription}>{ministry.description}</Text>
-          </View>
-        </View>
-      </View>
-
       <FlatList
         data={memos}
         keyExtractor={(item) => item.id}
         renderItem={renderMemoItem}
         contentContainerStyle={styles.listContainer}
-        refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-          />
-        }
         ListEmptyComponent={renderEmptyState}
         showsVerticalScrollIndicator={false}
       />
-
+      
+      {renderActionModal()}
+      
       <BiometricAuthModal
         visible={showBiometricModal}
+        onClose={handleBiometricCancel}
         onSuccess={handleBiometricSuccess}
-        onCancel={() => setShowBiometricModal(false)}
-        title="Authenticate to View Memo"
-        subtitle="Use biometric authentication to view this memo"
+        action={pendingAction ? pendingAction.replace('_', ' ') : ''}
+        memoTitle={selectedMemo?.title}
       />
     </View>
   );
@@ -234,47 +334,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.gray[200],
-  },
-  ministryInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ministryIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.gray[100],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  ministryDetails: {
-    flex: 1,
-  },
-  ministryName: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.text.primary,
-    marginBottom: 4,
-  },
-  ministryDescription: {
-    fontSize: 16,
-    color: colors.text.secondary,
-  },
   listContainer: {
     flexGrow: 1,
+    padding: 20,
   },
   memoCard: {
     backgroundColor: colors.surface,
-    marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 12,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
     shadowColor: colors.shadow.sm,
     shadowOffset: {
       width: 0,
@@ -286,51 +354,186 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.gray[200],
   },
-  memoContent: {
-    padding: 16,
-  },
   memoHeader: {
-    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  titleContainer: {
+    flex: 1,
+    marginRight: 16,
   },
   memoTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text.primary,
-    marginBottom: 8,
-  },
-  memoBadges: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  priorityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    lineHeight: 22,
+    marginBottom: 6,
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: colors.shadow.sm,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.6,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  badgeText: {
-    fontSize: 12,
+  statusText: {
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text.inverse,
+    marginLeft: 6,
+    textTransform: 'capitalize',
+  },
+  contentContainer: {
+    marginBottom: 8,
   },
   memoContent: {
     fontSize: 14,
     color: colors.text.secondary,
     lineHeight: 20,
-    marginBottom: 12,
+    fontStyle: 'italic',
   },
   memoFooter: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray[100],
+  },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   memoDate: {
-    fontSize: 13,
+    fontSize: 14,
     color: colors.text.tertiary,
+    marginLeft: 6,
+    fontWeight: '500',
+  },
+  actionIndicator: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: colors.gray[50],
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 0,
+    width: '100%',
+    maxWidth: 420,
+    shadowColor: colors.shadow.md,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray[100],
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: colors.gray[50],
+  },
+  memoPreview: {
+    padding: 24,
+    paddingBottom: 16,
+    backgroundColor: colors.gray[50],
+    margin: 24,
+    marginTop: 0,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.gray[100],
+  },
+  memoPreviewTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 8,
+  },
+  memoPreviewContent: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    lineHeight: 20,
+  },
+  commentSection: {
+    padding: 24,
+    paddingTop: 0,
+  },
+  commentLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 12,
+  },
+  commentInput: {
+    borderWidth: 1,
+    borderColor: colors.gray[200],
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: colors.text.primary,
+    backgroundColor: colors.surface,
+    textAlignVertical: 'top',
+    minHeight: 80,
+  },
+  actionButtons: {
+    padding: 24,
+    paddingTop: 0,
+    gap: 12,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    shadowColor: colors.shadow.sm,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.6,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  actionButtonText: {
+    color: colors.text.inverse,
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   emptyState: {
     flex: 1,
@@ -339,57 +542,30 @@ const styles = StyleSheet.create({
     paddingVertical: 80,
     paddingHorizontal: 40,
   },
-  emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.gray[100],
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: colors.gray[50],
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 32,
+    borderWidth: 2,
+    borderColor: colors.gray[100],
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 24,
+    fontWeight: '700',
     color: colors.text.primary,
-    marginBottom: 8,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 16,
     color: colors.text.secondary,
     textAlign: 'center',
-    lineHeight: 22,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: colors.text.secondary,
-    marginTop: 16,
-  },
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-    paddingHorizontal: 40,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.text.primary,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  errorSubtitle: {
-    fontSize: 16,
-    color: colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
+    maxWidth: 280,
   },
 });
 

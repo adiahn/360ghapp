@@ -207,7 +207,7 @@ const MemoViewScreen = () => {
     >
       <Ionicons 
         name={icon as any} 
-        size={20} 
+        size={16} 
         color={activeTab === tab ? colors.text.inverse : colors.text.secondary} 
       />
       <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
@@ -407,10 +407,10 @@ const MemoViewScreen = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
+      <View style={styles.loadingContainer}>
           <Ionicons name="refresh" size={24} color={colors.gray[400]} />
-          <Text style={styles.loadingText}>Loading memo...</Text>
-        </View>
+        <Text style={styles.loadingText}>Loading memo...</Text>
+      </View>
       </SafeAreaView>
     );
   }
@@ -418,11 +418,11 @@ const MemoViewScreen = () => {
   if (!memo) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
+      <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color={colors.error} />
-          <Text style={styles.errorTitle}>Memo Not Found</Text>
+        <Text style={styles.errorTitle}>Memo Not Found</Text>
           <Text style={styles.errorSubtitle}>The requested memo could not be found.</Text>
-        </View>
+      </View>
       </SafeAreaView>
     );
   }
@@ -434,7 +434,7 @@ const MemoViewScreen = () => {
         {renderTabButton('details', 'document-text', 'Details')}
         {renderTabButton('workflow', 'git-branch', 'Workflow')}
         {renderTabButton('comments', 'chatbubble', 'Comments')}
-      </View>
+        </View>
 
       {/* Tab Content */}
       {activeTab === 'details' && renderMemoDetails()}
@@ -510,15 +510,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    gap: 6,
   },
   activeTabButton: {
     backgroundColor: colors.primary,
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     color: colors.text.secondary,
   },
