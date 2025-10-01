@@ -376,27 +376,35 @@ const MemoViewScreen = () => {
           
           <View style={styles.actionButtons}>
             <TouchableOpacity
-              style={[styles.actionButton, styles.approveButton]}
+              style={styles.actionCard}
               onPress={() => handleAction('approved')}
             >
-              <Ionicons name="checkmark" size={20} color={colors.text.inverse} />
-              <Text style={styles.actionButtonText}>Approve</Text>
+              <Ionicons name="checkmark" size={24} color={colors.border} />
+              <Text style={styles.actionCardText}>Approve</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.actionButton, styles.rejectButton]}
+              style={styles.actionCard}
               onPress={() => handleAction('rejected')}
             >
-              <Ionicons name="close" size={20} color={colors.text.inverse} />
-              <Text style={styles.actionButtonText}>Reject</Text>
+              <Ionicons name="close" size={24} color={colors.border} />
+              <Text style={styles.actionCardText}>Reject</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.actionButton, styles.requestButton]}
+              style={styles.actionCard}
               onPress={() => handleAction('request_details')}
             >
-              <Ionicons name="help-circle" size={20} color={colors.text.inverse} />
-              <Text style={styles.actionButtonText}>Request Details</Text>
+              <Ionicons name="send" size={24} color={colors.border} />
+              <Text style={styles.actionCardText}>Forward</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => handleAction('pending')}
+            >
+              <Ionicons name="bookmark" size={24} color={colors.border} />
+              <Text style={styles.actionCardText}>Keep in view</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -838,30 +846,28 @@ const styles = StyleSheet.create({
     minHeight: 80,
   },
   actionButtons: {
-    gap: 12,
-  },
-  actionButton: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  actionCard: {
+    width: '48%',
+    aspectRatio: 1,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    padding: 16,
     gap: 8,
   },
-  approveButton: {
-    backgroundColor: colors.success,
-  },
-  rejectButton: {
-    backgroundColor: colors.error,
-  },
-  requestButton: {
-    backgroundColor: colors.warning,
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text.inverse,
+  actionCardText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.text.primary,
+    textAlign: 'center',
   },
 });
 

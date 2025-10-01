@@ -282,7 +282,7 @@ const MemosScreen = ({ navigation }: any) => {
               >
                 <View style={styles.menuItemIcon}>
                   <Ionicons 
-                    name="business" 
+                    name="library" 
                     size={22} 
                     color={activeTab === 'mda' ? colors.primary : colors.text.secondary} 
                   />
