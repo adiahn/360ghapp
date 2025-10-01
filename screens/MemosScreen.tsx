@@ -257,7 +257,7 @@ const MemosScreen = ({ navigation }: any) => {
               >
                 <View style={styles.menuItemIcon}>
                   <Ionicons 
-                    name="home" 
+                    name="people" 
                     size={22} 
                     color={activeTab === 'home' ? colors.primary : colors.text.secondary} 
                   />
@@ -268,9 +268,6 @@ const MemosScreen = ({ navigation }: any) => {
                     activeTab === 'home' && styles.activeMenuText
                   ]}>
                     Home
-                  </Text>
-                  <Text style={styles.menuSubtext}>
-                    Personnel memos
                   </Text>
                 </View>
                 {activeTab === 'home' && (
@@ -296,9 +293,6 @@ const MemosScreen = ({ navigation }: any) => {
                     activeTab === 'mda' && styles.activeMenuText
                   ]}>
                     MDA's
-                  </Text>
-                  <Text style={styles.menuSubtext}>
-                    Ministry memos
                   </Text>
                 </View>
                 {activeTab === 'mda' && (
@@ -523,11 +517,6 @@ const styles = StyleSheet.create({
   activeMenuText: {
     color: colors.primary,
     fontWeight: '600',
-  },
-  menuSubtext: {
-    fontSize: 13,
-    color: colors.text.secondary,
-    fontWeight: '400',
   },
   activeIndicator: {
     position: 'absolute',

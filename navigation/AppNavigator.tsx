@@ -21,6 +21,7 @@ const MemosStack = () => (
       name="MemosList" 
       component={MemosScreen} 
       options={{ 
+        title: '',
         headerShown: false,
       }} 
     />
