@@ -29,6 +29,10 @@ const MinistryDetailScreen = ({ route, navigation }: any) => {
   const [showBiometricModal, setShowBiometricModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<MemoStatus | null>(null);
   const [actionComment, setActionComment] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<MemoStatus | 'all'>('all');
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [filteredMemos, setFilteredMemos] = useState<Memo[]>([]);
 
   const loadData = async () => {
     try {
@@ -40,7 +44,9 @@ const MinistryDetailScreen = ({ route, navigation }: any) => {
       
       const ministryData = ministriesData.find(m => m.id === ministryId);
       setMinistry(ministryData || null);
-      setMemos(memosData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      const sortedMemos = memosData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setMemos(sortedMemos);
+      setFilteredMemos(sortedMemos);
     } catch (error) {
       console.error('Error loading data:', error);
       Alert.alert('Error', 'Failed to load memo data');
@@ -54,6 +60,26 @@ const MinistryDetailScreen = ({ route, navigation }: any) => {
       loadData();
     }, [ministryId])
   );
+
+  // Filter and search memos
+  useEffect(() => {
+    let filtered = memos;
+
+    // Filter by status
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(memo => memo.status === filterStatus);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(memo => 
+        memo.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        memo.content.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    setFilteredMemos(filtered);
+  }, [memos, filterStatus, searchQuery]);
 
   // Set navigation title based on ministry name
   useEffect(() => {
@@ -208,6 +234,91 @@ const MinistryDetailScreen = ({ route, navigation }: any) => {
     </TouchableOpacity>
   );
 
+  const renderFilterModal = () => (
+    <Modal
+      visible={showFilterModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowFilterModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.filterModalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filter by Status</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowFilterModal(false)}
+            >
+              <Ionicons name="close" size={24} color={colors.text.tertiary} />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.filterOptions}>
+            <TouchableOpacity
+              style={[styles.filterOption, filterStatus === 'all' && styles.activeFilterOption]}
+              onPress={() => {
+                setFilterStatus('all');
+                setShowFilterModal(false);
+              }}
+            >
+              <Text style={[styles.filterOptionText, filterStatus === 'all' && styles.activeFilterOptionText]}>
+                All Memos
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.filterOption, filterStatus === 'pending' && styles.activeFilterOption]}
+              onPress={() => {
+                setFilterStatus('pending');
+                setShowFilterModal(false);
+              }}
+            >
+              <Text style={[styles.filterOptionText, filterStatus === 'pending' && styles.activeFilterOptionText]}>
+                Pending
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.filterOption, filterStatus === 'approved' && styles.activeFilterOption]}
+              onPress={() => {
+                setFilterStatus('approved');
+                setShowFilterModal(false);
+              }}
+            >
+              <Text style={[styles.filterOptionText, filterStatus === 'approved' && styles.activeFilterOptionText]}>
+                Approved
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.filterOption, filterStatus === 'rejected' && styles.activeFilterOption]}
+              onPress={() => {
+                setFilterStatus('rejected');
+                setShowFilterModal(false);
+              }}
+            >
+              <Text style={[styles.filterOptionText, filterStatus === 'rejected' && styles.activeFilterOptionText]}>
+                Rejected
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.filterOption, filterStatus === 'request_details' && styles.activeFilterOption]}
+              onPress={() => {
+                setFilterStatus('request_details');
+                setShowFilterModal(false);
+              }}
+            >
+              <Text style={[styles.filterOptionText, filterStatus === 'request_details' && styles.activeFilterOptionText]}>
+                Request Details
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
   const renderActionModal = () => (
     <Modal
       visible={showActionModal}
@@ -307,8 +418,28 @@ const MinistryDetailScreen = ({ route, navigation }: any) => {
 
   return (
     <View style={styles.container}>
+      {/* Search and Filter Bar */}
+      <View style={styles.searchFilterContainer}>
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color={colors.text.secondary} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search memos..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor={colors.text.tertiary}
+          />
+        </View>
+        <TouchableOpacity 
+          style={styles.filterButton}
+          onPress={() => setShowFilterModal(true)}
+        >
+          <Ionicons name="filter" size={20} color={colors.text.primary} />
+        </TouchableOpacity>
+      </View>
+
       <FlatList
-        data={memos}
+        data={filteredMemos}
         keyExtractor={(item) => item.id}
         renderItem={renderMemoItem}
         contentContainerStyle={styles.listContainer}
@@ -317,6 +448,7 @@ const MinistryDetailScreen = ({ route, navigation }: any) => {
       />
       
       {renderActionModal()}
+      {renderFilterModal()}
       
       <BiometricAuthModal
         visible={showBiometricModal}
@@ -333,6 +465,42 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  searchFilterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    alignItems: 'center',
+    gap: 12,
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.gray[50],
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.text.primary,
+  },
+  filterButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: colors.gray[50],
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   listContainer: {
     flexGrow: 1,
@@ -566,6 +734,46 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     maxWidth: 280,
+  },
+  filterModalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 0,
+    width: '90%',
+    maxWidth: 400,
+    shadowColor: colors.shadow.md,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  filterOptions: {
+    padding: 20,
+  },
+  filterOption: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: colors.gray[50],
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  activeFilterOption: {
+    backgroundColor: colors.primary + '10',
+    borderColor: colors.primary,
+  },
+  filterOptionText: {
+    fontSize: 16,
+    color: colors.text.primary,
+    textAlign: 'center',
+  },
+  activeFilterOptionText: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });
 

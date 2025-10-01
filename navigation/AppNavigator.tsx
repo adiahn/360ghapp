@@ -69,7 +69,7 @@ const MemosStack = () => (
         headerBackTitleVisible: false,
         headerBackTitle: '',
         headerLeftContainerStyle: {
-          marginLeft: 16,
+          marginLeft: 24,
         },
       }} 
     />
