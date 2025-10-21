@@ -16,6 +16,16 @@ export interface Ministry {
   avatar?: string;
 }
 
+export interface Prayer {
+  id: string;
+  memoId: string;
+  title: string;
+  description: string;
+  status: 'pending' | 'approved' | 'rejected';
+  amount?: number;
+  category?: string;
+}
+
 export interface Memo {
   id: string;
   contactId: string;
@@ -25,6 +35,7 @@ export interface Memo {
   status: MemoStatus;
   priority: MemoPriority;
   attachments?: string[];
+  prayers?: Prayer[];
 }
 
 export type MemoStatus = 'pending' | 'approved' | 'rejected' | 'request_details' | 'archived';

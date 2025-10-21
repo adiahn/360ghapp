@@ -56,7 +56,7 @@ export class BiometricAuthService {
   static async getPrimaryBiometricType(): Promise<string> {
     try {
       const types = await this.getAvailableTypes();
-      if (types.length === 0) return Platform.OS === 'ios' ? 'Biometrics' : 'Biometrics';
+       if (types.length === 0) return Platform.OS === 'ios' ? 'Biometrics' : 'Biometrics';
       
       // Return platform-specific names
       return Platform.OS === 'ios' ? 'Biometrics' : 'Biometrics';

@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 
-import { Memo, MemoAction } from '../types';
+import { Memo, MemoAction, Prayer } from '../types';
 import { DataService } from '../services/DataService';
 import { colors } from '../styles/colors';
 import BiometricAuthModal from '../components/BiometricAuthModal';
@@ -32,12 +32,18 @@ const MemoViewScreen = () => {
   const [actionComment, setActionComment] = useState('');
   const [comments, setComments] = useState<MemoAction[]>([]);
   const [workflowHistory, setWorkflowHistory] = useState<any[]>([]);
+  const [prayers, setPrayers] = useState<Prayer[]>([]);
+  const [selectedPrayers, setSelectedPrayers] = useState<string[]>([]);
+  const [showPrayersModal, setShowPrayersModal] = useState(false);
 
   useEffect(() => {
     loadMemo();
     loadComments();
     loadWorkflowHistory();
+    loadPrayers();
   }, [memoId]);
+
+
 
   const loadMemo = async () => {
     try {
@@ -101,6 +107,17 @@ const MemoViewScreen = () => {
     }
   };
 
+  const loadPrayers = async () => {
+    try {
+      const prayersData = await DataService.getPrayers(memoId);
+      setPrayers(prayersData);
+      // Select all prayers by default
+      setSelectedPrayers(prayersData.map(p => p.id));
+    } catch (error) {
+      console.error('Error loading prayers:', error);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'approved':
@@ -157,15 +174,32 @@ const MemoViewScreen = () => {
   const handleAction = async (action: string) => {
     if (!memo) return;
 
+    if (action === 'approved') {
+      // Always show prayers modal for approval (even if no prayers)
+      setPendingAction(action);
+      setShowActionModal(false);
+      // Reload prayers before showing modal
+      await loadPrayers();
+      setShowPrayersModal(true);
+    } else {
+      // For other actions, go directly to biometric
     setPendingAction(action);
     setShowActionModal(false);
     setShowBiometricModal(true);
+    }
   };
 
   const handleBiometricSuccess = async () => {
     if (!memo || !pendingAction) return;
 
     try {
+      if (pendingAction === 'approved' && selectedPrayers.length > 0) {
+        // Update prayer statuses for selected prayers
+        for (const prayerId of selectedPrayers) {
+          await DataService.updatePrayerStatus(prayerId, 'approved');
+        }
+      }
+
       const memoAction: MemoAction = {
         id: Date.now().toString(),
         memoId: memo.id,
@@ -183,6 +217,16 @@ const MemoViewScreen = () => {
       setShowBiometricModal(false);
       setActionComment('');
       setPendingAction(null);
+      setSelectedPrayers([]);
+      
+      // Update prayers state if any were approved
+      if (pendingAction === 'approved' && selectedPrayers.length > 0) {
+        setPrayers(prev => prev.map(prayer => 
+          selectedPrayers.includes(prayer.id) 
+            ? { ...prayer, status: 'approved' }
+            : prayer
+        ));
+      }
       
       // Reload comments
       await loadComments();
@@ -196,6 +240,78 @@ const MemoViewScreen = () => {
 
   const handleBiometricCancel = () => {
     setShowBiometricModal(false);
+    setPendingAction(null);
+    // If we were in prayers flow, go back to prayers modal, otherwise action modal
+    if (selectedPrayers.length > 0) {
+      setShowPrayersModal(true);
+    } else {
+      setShowActionModal(true);
+    }
+  };
+
+  const handlePrayerToggle = (prayerId: string) => {
+    setSelectedPrayers(prev => 
+      prev.includes(prayerId) 
+        ? prev.filter(id => id !== prayerId)
+        : [...prev, prayerId]
+    );
+  };
+
+  const handlePrayersConfirm = () => {
+    setShowPrayersModal(false);
+    // Show biometric authentication after prayers selection
+    setShowBiometricModal(true);
+  };
+
+  const handleDirectApproval = async () => {
+    if (!memo) return;
+
+    try {
+      if (selectedPrayers.length > 0) {
+        // Update prayer statuses for selected prayers
+        for (const prayerId of selectedPrayers) {
+          await DataService.updatePrayerStatus(prayerId, 'approved');
+        }
+      }
+
+      const memoAction: MemoAction = {
+        id: Date.now().toString(),
+        memoId: memo.id,
+        action: 'approved' as any,
+        comment: actionComment,
+        timestamp: new Date(),
+      };
+
+      await DataService.saveAction(memoAction);
+      
+      const updatedMemo = { ...memo, status: 'approved' as any };
+      await DataService.saveMemo(updatedMemo);
+      
+      setMemo(updatedMemo);
+      setActionComment('');
+      setSelectedPrayers([]);
+      
+      // Update prayers state if any were approved
+      if (selectedPrayers.length > 0) {
+        setPrayers(prev => prev.map(prayer => 
+          selectedPrayers.includes(prayer.id) 
+            ? { ...prayer, status: 'approved' }
+            : prayer
+        ));
+      }
+      
+      // Reload comments
+      await loadComments();
+      
+      Alert.alert('Success', 'Memo approved successfully');
+    } catch (error) {
+      console.error('Error performing action:', error);
+      Alert.alert('Error', 'Failed to perform action');
+    }
+  };
+
+  const handlePrayersCancel = () => {
+    setShowPrayersModal(false);
     setPendingAction(null);
     setShowActionModal(true);
   };
@@ -342,6 +458,87 @@ const MemoViewScreen = () => {
     </ScrollView>
   );
 
+  const renderPrayersModal = () => (
+    <Modal
+      visible={showPrayersModal}
+      transparent
+      animationType="fade"
+      onRequestClose={handlePrayersCancel}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.prayersModalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Select Prayers to Approve</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={handlePrayersCancel}
+            >
+              <Ionicons name="close" size={24} color={colors.text.tertiary} />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.prayersList}>
+            {prayers.length > 0 ? (
+              prayers.map((prayer) => (
+                <TouchableOpacity
+                  key={prayer.id}
+                  style={[
+                    styles.prayerItem,
+                    selectedPrayers.includes(prayer.id) && styles.selectedPrayerItem
+                  ]}
+                  onPress={() => handlePrayerToggle(prayer.id)}
+                >
+                  <View style={styles.prayerCheckbox}>
+                    <Ionicons 
+                      name={selectedPrayers.includes(prayer.id) ? "checkmark-circle" : "ellipse-outline"} 
+                      size={16} 
+                      color={selectedPrayers.includes(prayer.id) ? colors.primary : colors.gray[400]} 
+                    />
+                  </View>
+                  <View style={styles.prayerContent}>
+                    <Text style={styles.prayerTitle}>{prayer.title}</Text>
+                    <Text style={styles.prayerDescription}>{prayer.description}</Text>
+                    {prayer.amount && (
+                      <Text style={styles.prayerAmount}>
+                        ₦{prayer.amount.toLocaleString()}
+                      </Text>
+                    )}
+                    {prayer.category && (
+                      <Text style={styles.prayerCategory}>{prayer.category}</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.noPrayersContainer}>
+                <Ionicons name="document-outline" size={48} color={colors.gray[400]} />
+                <Text style={styles.noPrayersText}>No prayers found for this memo</Text>
+                <Text style={styles.noPrayersSubtext}>This memo doesn't have any associated requests</Text>
+              </View>
+            )}
+          </ScrollView>
+          
+          <View style={styles.prayersActions}>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={handlePrayersCancel}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.confirmButton}
+              onPress={handlePrayersConfirm}
+            >
+              <Text style={styles.confirmButtonText}>
+                Confirm ({selectedPrayers.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
   const renderActionModal = () => (
     <Modal
       visible={showActionModal}
@@ -379,7 +576,7 @@ const MemoViewScreen = () => {
               style={styles.actionCard}
               onPress={() => handleAction('approved')}
             >
-              <Ionicons name="checkmark" size={24} color={colors.border} />
+              <Ionicons name="checkmark" size={20} color={colors.border} />
               <Text style={styles.actionCardText}>Approve</Text>
             </TouchableOpacity>
             
@@ -387,7 +584,7 @@ const MemoViewScreen = () => {
               style={styles.actionCard}
               onPress={() => handleAction('rejected')}
             >
-              <Ionicons name="close" size={24} color={colors.border} />
+              <Ionicons name="close" size={20} color={colors.border} />
               <Text style={styles.actionCardText}>Reject</Text>
             </TouchableOpacity>
             
@@ -395,7 +592,7 @@ const MemoViewScreen = () => {
               style={styles.actionCard}
               onPress={() => handleAction('request_details')}
             >
-              <Ionicons name="send" size={24} color={colors.border} />
+              <Ionicons name="send" size={20} color={colors.border} />
               <Text style={styles.actionCardText}>Forward</Text>
             </TouchableOpacity>
             
@@ -403,7 +600,7 @@ const MemoViewScreen = () => {
               style={styles.actionCard}
               onPress={() => handleAction('pending')}
             >
-              <Ionicons name="bookmark" size={24} color={colors.border} />
+              <Ionicons name="bookmark" size={20} color={colors.border} />
               <Text style={styles.actionCardText}>Keep in view</Text>
             </TouchableOpacity>
           </View>
@@ -459,6 +656,7 @@ const MemoViewScreen = () => {
 
       {/* Modals */}
       {renderActionModal()}
+      {renderPrayersModal()}
       
       <BiometricAuthModal
         visible={showBiometricModal}
@@ -813,12 +1011,15 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
   },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
+          modalHeader: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: 16,
+            paddingTop: 16,
+            paddingBottom: 12,
+            marginBottom: 0,
+          },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
@@ -845,28 +1046,148 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     minHeight: 80,
   },
-  actionButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  actionCard: {
-    width: '48%',
-    aspectRatio: 1,
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    gap: 8,
-  },
+          actionButtons: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            justifyContent: 'space-between',
+          },
+          actionCard: {
+            width: '47%',
+            height: 80,
+            backgroundColor: 'transparent',
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: 8,
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 12,
+            gap: 6,
+          },
   actionCardText: {
     fontSize: 12,
     fontWeight: '500',
     color: colors.text.primary,
+    textAlign: 'center',
+  },
+          prayersModalContent: {
+            backgroundColor: colors.surface,
+            borderRadius: 16,
+            padding: 0,
+            width: '95%',
+            maxWidth: 500,
+            maxHeight: '80%',
+            marginTop: 50,
+            shadowColor: colors.shadow.md,
+            shadowOffset: {
+              width: 0,
+              height: 4,
+            },
+            shadowOpacity: 0.8,
+            shadowRadius: 12,
+            elevation: 6,
+          },
+  prayersList: {
+    maxHeight: 400,
+    padding: 16,
+  },
+          prayerItem: {
+            flexDirection: 'row',
+            padding: 8,
+            marginBottom: 6,
+            backgroundColor: colors.gray[50],
+            borderRadius: 6,
+            borderWidth: 1,
+            borderColor: colors.border,
+            minHeight: 60,
+          },
+  selectedPrayerItem: {
+    backgroundColor: colors.primary + '10',
+    borderColor: colors.primary,
+  },
+  prayerCheckbox: {
+    marginRight: 12,
+    justifyContent: 'center',
+  },
+  prayerContent: {
+    flex: 1,
+  },
+          prayerTitle: {
+            fontSize: 12,
+            fontWeight: '600',
+            color: colors.text.primary,
+            marginBottom: 1,
+          },
+          prayerDescription: {
+            fontSize: 10,
+            color: colors.text.secondary,
+            marginBottom: 2,
+            lineHeight: 14,
+          },
+          prayerAmount: {
+            fontSize: 10,
+            fontWeight: '600',
+            color: colors.primary,
+            marginBottom: 1,
+          },
+          prayerCategory: {
+            fontSize: 8,
+            color: colors.text.tertiary,
+            backgroundColor: colors.gray[200],
+            paddingHorizontal: 4,
+            paddingVertical: 1,
+            borderRadius: 2,
+            alignSelf: 'flex-start',
+          },
+  prayersActions: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: colors.gray[100],
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.secondary,
+  },
+  confirmButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.inverse,
+  },
+  noPrayersContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  noPrayersText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.secondary,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  noPrayersSubtext: {
+    fontSize: 14,
+    color: colors.text.tertiary,
     textAlign: 'center',
   },
 });

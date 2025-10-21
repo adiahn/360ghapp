@@ -116,6 +116,30 @@ const SettingsScreen = () => {
     );
   };
 
+  const handleClearAndReinitialize = () => {
+    Alert.alert(
+      'Clear and Reinitialize Data',
+      'This will clear all existing data and reload fresh sample data including prayers.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Clear & Reload',
+          onPress: async () => {
+            try {
+              await DataService.clearAndReinitialize();
+              Alert.alert('Success', 'Data cleared and reloaded successfully');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to clear and reload data');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderSettingItem = (
     icon: string,
     title: string,
@@ -193,7 +217,7 @@ const SettingsScreen = () => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Security</Text>
         
-        {renderSettingItem(
+        {renderSettingItem(/*  */
           biometricAvailable ? (Platform.OS === 'ios' ? 'finger-print' : 'scan') : 'shield-checkmark',
           biometricAvailable ? `${biometricType} Authentication` : 'Biometric Authentication',
           biometricAvailable 
@@ -237,6 +261,13 @@ const SettingsScreen = () => {
           'Load Sample Data',
           'Load sample contacts and memos for testing',
           handleInitializeSampleData
+        )}
+        
+        {renderSettingItem(
+          'refresh',
+          'Clear & Reload Data',
+          'Clear all data and reload fresh sample data including prayers',
+          handleClearAndReinitialize
         )}
         
         {renderSettingItem(

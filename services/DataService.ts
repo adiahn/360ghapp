@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Contact, Ministry, Memo, MemoAction, MemoStatus } from '../types';
+import { Contact, Ministry, Memo, MemoAction, MemoStatus, Prayer } from '../types';
 
 const STORAGE_KEYS = {
   CONTACTS: 'contacts',
   MINISTRIES: 'ministries',
   MEMOS: 'memos',
   ACTIONS: 'actions',
+  PRAYERS: 'prayers',
 };
 
 export class DataService {
@@ -114,6 +115,7 @@ export class DataService {
         
         // Save the action
         const action: MemoAction = {
+          id: Date.now().toString(),
           memoId,
           action: status,
           comment,
@@ -123,6 +125,52 @@ export class DataService {
       }
     } catch (error) {
       console.error('Error updating memo status:', error);
+    }
+  }
+
+  // Prayers
+  static async getPrayers(memoId?: string): Promise<Prayer[]> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.PRAYERS);
+      const prayers: Prayer[] = data ? JSON.parse(data) : [];
+      return memoId ? prayers.filter(p => p.memoId === memoId) : prayers;
+    } catch (error) {
+      console.error('Error loading prayers:', error);
+      return [];
+    }
+  }
+
+  static async savePrayers(prayers: Prayer[]): Promise<void> {
+    await AsyncStorage.setItem(STORAGE_KEYS.PRAYERS, JSON.stringify(prayers));
+  }
+
+  static async updatePrayerStatus(prayerId: string, status: 'pending' | 'approved' | 'rejected'): Promise<void> {
+    try {
+      const prayers = await this.getPrayers();
+      const updatedPrayers = prayers.map(prayer => 
+        prayer.id === prayerId ? { ...prayer, status } : prayer
+      );
+      await this.savePrayers(updatedPrayers);
+    } catch (error) {
+      console.error('Error updating prayer status:', error);
+      throw error;
+    }
+  }
+
+  // Clear all data and reinitialize
+  static async clearAndReinitialize(): Promise<void> {
+    try {
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.CONTACTS,
+        STORAGE_KEYS.MINISTRIES,
+        STORAGE_KEYS.MEMOS,
+        STORAGE_KEYS.ACTIONS,
+        STORAGE_KEYS.PRAYERS,
+      ]);
+      await this.initializeSampleData();
+    } catch (error) {
+      console.error('Error clearing and reinitializing data:', error);
+      throw error;
     }
   }
 
@@ -285,8 +333,226 @@ export class DataService {
       },
     ];
 
+    const prayers: Prayer[] = [
+      {
+        id: 'p1',
+        memoId: '1',
+        title: 'Classroom Construction',
+        description: 'Construction of 10 new classrooms in rural schools',
+        status: 'pending',
+        amount: 5000000,
+        category: 'Infrastructure',
+      },
+      {
+        id: 'p2',
+        memoId: '1',
+        title: 'Teacher Training Program',
+        description: 'Professional development training for 50 teachers',
+        status: 'pending',
+        amount: 2000000,
+        category: 'Education',
+      },
+      {
+        id: 'p3',
+        memoId: '2',
+        title: 'Medical Equipment Purchase',
+        description: 'Purchase of modern medical equipment for state hospitals',
+        status: 'pending',
+        amount: 15000000,
+        category: 'Healthcare',
+      },
+      {
+        id: 'p4',
+        memoId: '2',
+        title: 'Ambulance Fleet',
+        description: 'Purchase of 5 new ambulances for emergency services',
+        status: 'pending',
+        amount: 8000000,
+        category: 'Healthcare',
+      },
+      {
+        id: 'p5',
+        memoId: 'm1',
+        title: 'School Feeding Program',
+        description: 'Daily meal program for 10,000 students',
+        status: 'pending',
+        amount: 12000000,
+        category: 'Education',
+      },
+      {
+        id: 'p6',
+        memoId: 'm1',
+        title: 'Textbook Distribution',
+        description: 'Free textbook distribution to all public schools',
+        status: 'pending',
+        amount: 3000000,
+        category: 'Education',
+      },
+      {
+        id: 'p7',
+        memoId: '5',
+        title: 'Highway Construction Phase 1',
+        description: 'Construction of 50km highway section connecting major cities',
+        status: 'pending',
+        amount: 25000000,
+        category: 'Infrastructure',
+      },
+      {
+        id: 'p8',
+        memoId: '5',
+        title: 'Bridge Construction',
+        description: 'Construction of 3 major bridges along the highway route',
+        status: 'pending',
+        amount: 15000000,
+        category: 'Infrastructure',
+      },
+      {
+        id: 'p9',
+        memoId: '5',
+        title: 'Land Acquisition',
+        description: 'Compensation for land acquisition along the highway route',
+        status: 'pending',
+        amount: 8000000,
+        category: 'Land',
+      },
+      // Prayers for memo ID 3
+      {
+        id: 'p10',
+        memoId: '3',
+        title: 'Textbook Printing',
+        description: 'Printing of 100,000 textbooks for distribution',
+        status: 'pending',
+        amount: 4000000,
+        category: 'Education',
+      },
+      {
+        id: 'p11',
+        memoId: '3',
+        title: 'Teacher Salaries',
+        description: 'Payment of outstanding teacher salaries',
+        status: 'pending',
+        amount: 6000000,
+        category: 'Education',
+      },
+      // Prayers for memo ID 4
+      {
+        id: 'p12',
+        memoId: '4',
+        title: 'Medical Supplies',
+        description: 'Procurement of essential medical supplies',
+        status: 'pending',
+        amount: 3000000,
+        category: 'Healthcare',
+      },
+      {
+        id: 'p13',
+        memoId: '4',
+        title: 'Hospital Renovation',
+        description: 'Renovation of 5 state hospitals',
+        status: 'pending',
+        amount: 12000000,
+        category: 'Healthcare',
+      },
+      // Prayers for memo ID 6
+      {
+        id: 'p14',
+        memoId: '6',
+        title: 'Bridge Maintenance',
+        description: 'Maintenance of 3 major bridges',
+        status: 'pending',
+        amount: 5000000,
+        category: 'Infrastructure',
+      },
+      {
+        id: 'p15',
+        memoId: '6',
+        title: 'Road Repairs',
+        description: 'Repair of damaged road sections',
+        status: 'pending',
+        amount: 8000000,
+        category: 'Infrastructure',
+      },
+      // Prayers for memo ID m2
+      {
+        id: 'p16',
+        memoId: 'm2',
+        title: 'Health Equipment',
+        description: 'Purchase of diagnostic equipment for health centers',
+        status: 'pending',
+        amount: 7000000,
+        category: 'Healthcare',
+      },
+      {
+        id: 'p17',
+        memoId: 'm2',
+        title: 'Vaccination Program',
+        description: 'Mass vaccination program for children',
+        status: 'pending',
+        amount: 4000000,
+        category: 'Healthcare',
+      },
+      // Prayers for memo ID m3
+      {
+        id: 'p18',
+        memoId: 'm3',
+        title: 'Water Project',
+        description: 'Construction of water treatment plant',
+        status: 'pending',
+        amount: 20000000,
+        category: 'Infrastructure',
+      },
+      {
+        id: 'p19',
+        memoId: 'm3',
+        title: 'Road Network',
+        description: 'Construction of rural road network',
+        status: 'pending',
+        amount: 15000000,
+        category: 'Infrastructure',
+      },
+      // Prayers for memo ID m4
+      {
+        id: 'p20',
+        memoId: 'm4',
+        title: 'Fertilizer Distribution',
+        description: 'Distribution of subsidized fertilizers to farmers',
+        status: 'pending',
+        amount: 10000000,
+        category: 'Agriculture',
+      },
+      {
+        id: 'p21',
+        memoId: 'm4',
+        title: 'Farm Equipment',
+        description: 'Procurement of modern farming equipment',
+        status: 'pending',
+        amount: 8000000,
+        category: 'Agriculture',
+      },
+      // Prayers for memo ID m5
+      {
+        id: 'p22',
+        memoId: 'm5',
+        title: 'Budget Allocation',
+        description: 'Additional budget allocation for ministries',
+        status: 'pending',
+        amount: 50000000,
+        category: 'Finance',
+      },
+      {
+        id: 'p23',
+        memoId: 'm5',
+        title: 'Revenue Generation',
+        description: 'Program to increase state revenue',
+        status: 'pending',
+        amount: 20000000,
+        category: 'Finance',
+      },
+    ];
+
     await this.saveContacts(contacts);
     await this.saveMinistries(ministries);
     await AsyncStorage.setItem(STORAGE_KEYS.MEMOS, JSON.stringify(memos));
+    await this.savePrayers(prayers);
   }
 }
